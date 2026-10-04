@@ -1,0 +1,69 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Visual Studio Code
+.vscode/
+!.vscode/extensions.json
+
+# IntelliJ / JetBrains
+.idea/
+*.iml
+
+# Java / Maven / Spring Boot
+target/
+*.class
+*.jar
+*.war
+*.ear
+
+# Node / React / Vite
+node_modules/
+dist/
+build/
+coverage/
+
+# Environment and local configuration
+.env
+.env.*
+!.env.example
+application-local.properties
+application-local.yml
+*.secrets.properties
+*.secrets.yml
+
+# Logs
+*.log
+logs/
+
+# Local databases / backups
+*.db
+*.sqlite
+*.sqlite3
+*.bak
+*.dump
+
+# Certificates / keys
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# Credentials / secrets
+credentials.json
+secrets.json
+secrets.yml
+secrets.yaml
+
+# Private local notes
+PRIVATE_NOTES_DO_NOT_COMMIT.md
+LOCAL_SECURITY_NOTES.md
+
+# Archives
+*.zip
+*.tar
+*.tar.gz
