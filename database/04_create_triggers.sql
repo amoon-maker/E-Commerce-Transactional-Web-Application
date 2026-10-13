@@ -1,14 +1,16 @@
+
 /*
-  Um Hamza E-Commerce Transactional Web Application
-  DATABASE COMPLETION
-  Required SQL Server Product inventory/status trigger.
+    E-Commerce Transactional Web Application
+    SQL Server inventory/status synchronization trigger.
 
-  Requirement:
-    stock_quantity = 0  -> OUT_OF_STOCK
-    stock_quantity > 0  -> IN_STOCK
+    Rules:
+      stock_quantity = 0  -> OUT_OF_STOCK
+      stock_quantity > 0  -> IN_STOCK
 
-  The trigger is set-based and handles multi-row INSERT/UPDATE operations.
+    Applies to INSERT and UPDATE, including status-only updates.
+    Set-based: supports multiple affected products.
 */
+
 USE UmHamzaECommerce;
 GO
 
@@ -19,19 +21,39 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Prevent recursive firing when this trigger updates only STATUS.
-    IF UPDATE(stock_quantity)
-    BEGIN
-        UPDATE p
-        SET
-            status = CASE
-                WHEN p.stock_quantity = 0 THEN N'OUT_OF_STOCK'
+    UPDATE p
+    SET
+        status = expected.correct_status,
+        updated_at = SYSUTCDATETIME()
+    FROM dbo.PRODUCTS AS p
+    INNER JOIN inserted AS i
+        ON i.product_id = p.product_id
+    CROSS APPLY (
+        SELECT
+            CASE
+                WHEN p.stock_quantity = 0
+                    THEN N'OUT_OF_STOCK'
                 ELSE N'IN_STOCK'
-            END,
-            updated_at = SYSUTCDATETIME()
-        FROM dbo.PRODUCTS p
-        INNER JOIN inserted i
-            ON i.product_id = p.product_id;
-    END
+            END AS correct_status
+    ) AS expected
+    WHERE p.status <> expected.correct_status;
 END;
+GO
+
+PRINT 'Inventory/status trigger created or updated successfully.';
+GO
+
+
+---
+/*verification query*/
+
+
+USE UmHamzaECommerce;
+GO
+
+SELECT
+    name AS trigger_name,
+    is_disabled
+FROM sys.triggers
+WHERE name = N'TR_PRODUCTS_SyncStatus';
 GO

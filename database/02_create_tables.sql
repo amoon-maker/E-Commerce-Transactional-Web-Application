@@ -109,10 +109,18 @@ CREATE TABLE dbo.ADDRESSES (
         CONSTRAINT DF_ADDRESSES_created_at DEFAULT (SYSUTCDATETIME()),
     updated_at DATETIME2(0) NOT NULL
         CONSTRAINT DF_ADDRESSES_updated_at DEFAULT (SYSUTCDATETIME()),
-    CONSTRAINT PK_ADDRESSES PRIMARY KEY (address_id),
-    CONSTRAINT FK_ADDRESSES_CUSTOMERS FOREIGN KEY (customer_id)
+     CONSTRAINT PK_ADDRESSES
+        PRIMARY KEY (address_id),
+
+    CONSTRAINT FK_ADDRESSES_CUSTOMERS
+        FOREIGN KEY (customer_id)
         REFERENCES dbo.CUSTOMERS(customer_id),
-    CONSTRAINT CK_ADDRESSES_type CHECK (address_type IN (N'HOME', N'WORK', N'OTHER'))
+
+    CONSTRAINT UQ_ADDRESSES_CUSTOMER_ADDRESS
+        UNIQUE (customer_id, address_id),
+
+    CONSTRAINT CK_ADDRESSES_type
+        CHECK (address_type IN (N'HOME', N'WORK', N'OTHER'))
 );
 GO
 
@@ -308,8 +316,9 @@ CREATE TABLE dbo.ORDERS (
     CONSTRAINT UQ_ORDERS_order_number UNIQUE (order_number),
     CONSTRAINT FK_ORDERS_CUSTOMERS FOREIGN KEY (customer_id)
         REFERENCES dbo.CUSTOMERS(customer_id),
-    CONSTRAINT FK_ORDERS_ADDRESSES FOREIGN KEY (delivery_address_id)
-        REFERENCES dbo.ADDRESSES(address_id),
+   CONSTRAINT FK_ORDERS_CUSTOMER_ADDRESS
+    FOREIGN KEY (customer_id, delivery_address_id)
+    REFERENCES dbo.ADDRESSES(customer_id, address_id),
     CONSTRAINT CK_ORDERS_subtotal CHECK (subtotal >= 0),
     CONSTRAINT CK_ORDERS_discount CHECK (discount_amount >= 0),
     CONSTRAINT CK_ORDERS_tax CHECK (tax_amount >= 0),
@@ -326,6 +335,14 @@ CREATE TABLE dbo.ORDERS (
             N'REJECTED',
             N'CANCELLED'
         )
+    ),
+    CONSTRAINT CK_ORDERS_discount_not_exceed_subtotal
+    CHECK (discount_amount <= subtotal),
+
+CONSTRAINT CK_ORDERS_total_matches_components
+    CHECK (
+        total_amount =
+            subtotal - discount_amount + tax_amount + shipping_cost
     )
 );
 GO
@@ -483,7 +500,15 @@ CREATE TABLE dbo.INVOICES (
     CONSTRAINT CK_INVOICES_tax CHECK (tax_amount >= 0),
     CONSTRAINT CK_INVOICES_shipping CHECK (shipping_cost >= 0),
     CONSTRAINT CK_INVOICES_total CHECK (total_amount >= 0),
-    CONSTRAINT CK_INVOICES_status CHECK (status IN (N'ISSUED', N'VOID'))
+    CONSTRAINT CK_INVOICES_status CHECK (status IN (N'ISSUED', N'VOID')),
+    CONSTRAINT CK_INVOICES_discount_not_exceed_subtotal
+    CHECK (discount_amount <= subtotal),
+
+CONSTRAINT CK_INVOICES_total_matches_components
+    CHECK (
+        total_amount =
+            subtotal - discount_amount + tax_amount + shipping_cost
+    )
 );
 GO
 
