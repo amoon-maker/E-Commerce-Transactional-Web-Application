@@ -7,9 +7,11 @@ GO
 
     Test 1: CUSTOMER users cannot have a vendor association.
     Test 2: Users with customer profiles cannot change to ADMIN.
-    Test 3: Assigned role names must remain within the allowed values.
+    Test 3: Invalid role names are rejected.
+    Test 4: Customer profiles cannot be deleted while their
+            CUSTOMER user accounts exist.
 
-    These are negative tests. Each attempted change must be rejected.
+    Each test attempts an invalid operation.
     No invalid changes should remain in the database.
 */
 
@@ -18,6 +20,7 @@ DECLARE @VendorId BIGINT;
 DECLARE @AdminRoleId BIGINT;
 DECLARE @CustomerRoleId BIGINT;
 DECLARE @Err INT;
+DECLARE @ErrMsg NVARCHAR(4000);
 
 SELECT @CustomerUserId = user_id
 FROM dbo.USERS
@@ -104,6 +107,7 @@ ELSE
 
 -- TEST 3: The allowed-role CHECK constraint must reject an invalid name.
 SET @Err = NULL;
+SET @ErrMsg = NULL;
 
 BEGIN TRY
     BEGIN TRANSACTION;
@@ -117,17 +121,94 @@ BEGIN TRY
 END TRY
 BEGIN CATCH
     SET @Err = ERROR_NUMBER();
+SET @ErrMsg = ERROR_MESSAGE();
 
     IF XACT_STATE() <> 0
         ROLLBACK TRANSACTION;
 END CATCH;
 
 IF @Err = 547
+   AND @ErrMsg LIKE N'%CK_ROLES_role_name%'
     PRINT 'PASS 3: Invalid role name rejected by CK_ROLES_role_name.';
 ELSE
     THROW 51103,
-        'FAIL 3: Invalid role name was not rejected.',
+        'FAIL 3: Invalid role name was not rejected by the expected constraint.',
         1;
 
-PRINT 'All user/role consistency tests passed.';
+
+-- TEST 4: Prevent deletion of a customer profile.
+-- Use a temporary account with no dependent records.
+DECLARE @TempUserId BIGINT;
+DECLARE @TempCustomerId BIGINT;
+DECLARE @TempEmail NVARCHAR(255);
+DECLARE @DeleteErr INT = NULL;
+
+SET @TempEmail =
+    N'role-delete-test-' +
+    REPLACE(CONVERT(NVARCHAR(36), NEWID()), N'-', N'') +
+    N'@example.test';
+
+BEGIN TRY
+    BEGIN TRANSACTION;
+
+    -- Create a temporary CUSTOMER account.
+    INSERT INTO dbo.USERS (
+        role_id,
+        vendor_id,
+        email,
+        password_hash
+    )
+    VALUES (
+        @CustomerRoleId,
+        NULL,
+        @TempEmail,
+        N'test-only-not-a-real-password-hash'
+    );
+
+    SET @TempUserId = CONVERT(BIGINT, SCOPE_IDENTITY());
+
+    -- Create its temporary customer profile.
+    INSERT INTO dbo.CUSTOMERS (
+        user_id,
+        first_name,
+        last_name
+    )
+    VALUES (
+        @TempUserId,
+        N'Temporary',
+        N'DeletionTest'
+    );
+
+    SET @TempCustomerId = CONVERT(BIGINT, SCOPE_IDENTITY());
+
+    -- Attempt to delete the profile. The custom trigger should reject it.
+    BEGIN TRY
+        DELETE FROM dbo.CUSTOMERS
+        WHERE customer_id = @TempCustomerId;
+
+        SET @DeleteErr = 0;
+    END TRY
+    BEGIN CATCH
+        SET @DeleteErr = ERROR_NUMBER();
+    END CATCH;
+
+    -- Roll back the test transaction, including temporary records.
+    IF XACT_STATE() <> 0
+        ROLLBACK TRANSACTION;
+
+    IF @DeleteErr = 51015
+        PRINT 'PASS 4: Customer profile deletion rejected by the trigger.';
+    ELSE
+        THROW 51105,
+            'FAIL 4: Customer profile deletion was not rejected by error 51015.',
+            1;
+
+    PRINT 'All four user/role consistency tests passed.';
+END TRY
+BEGIN CATCH
+    IF XACT_STATE() <> 0
+        ROLLBACK TRANSACTION;
+
+    THROW;
+END CATCH;
 GO
