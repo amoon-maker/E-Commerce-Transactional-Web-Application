@@ -66,3 +66,71 @@ This repository contains academic project work developed for educational purpose
 - Monetary values use SQL Server `DECIMAL` types. The order and invoice constraints validate component totals and prevent discounts from exceeding subtotals.
 - The inventory trigger synchronizes product status with stock quantity, including multi-row operations.
 - A copy of the setup scripts was verified against a separate fresh test database. The original working database was preserved during verification.
+
+## Backend — Spring Boot REST API
+
+### Prerequisites
+
+- Java 21 or above
+- Microsoft SQL Server running and accessible
+- Maven Wrapper included in `backend/`
+
+### Configure Environment Variables
+
+The backend reads database credentials and the temporary development login from environment variables. Do not commit actual credentials to GitHub.
+
+The example below assumes a local SQL Server instance exposed on port `14330` and a database named `UmHamzaECommerce`. Adjust the server address, port, database name, and SQL Server username to match your own setup.
+
+From the project root, configure the variables:
+
+```bash
+export DB_URL='jdbc:sqlserver://localhost:14330;databaseName=UmHamzaECommerce;encrypt=true;trustServerCertificate=true'
+export DB_USERNAME='YOUR_SQL_SERVER_USERNAME'
+
+printf "SQL Server password: "
+read -s DB_PASSWORD
+printf '\n'
+export DB_PASSWORD
+
+printf "Temporary development password: "
+read -s APP_DEV_PASSWORD
+printf '\n'
+export APP_DEV_PASSWORD
+```
+
+Replace `YOUR_SQL_SERVER_USERNAME` with a SQL Server login that has the required permissions for the database. Type each password when prompted; password characters will not appear on screen.
+
+`APP_DEV_PASSWORD` is a locally chosen password for the temporary development login named `user`. Do not include actual passwords in this README or commit them to version control.
+
+### Run the Backend
+
+From the project root, after configuring the environment variables:
+
+```bash
+./backend/mvnw -f backend/pom.xml spring-boot:run
+```
+
+The API uses port `8080` by default when startup succeeds.
+
+### Swagger Documentation
+
+After starting the backend, open:
+
+- Swagger UI: http://localhost:8080/swagger-ui.html
+- OpenAPI JSON: http://localhost:8080/v3/api-docs
+
+Swagger documentation is permitted without authentication. API endpoints require authentication under the current development security configuration.
+
+### Run Tests
+
+From the project root:
+
+```bash
+./backend/mvnw -f backend/pom.xml test
+```
+
+Review the test results and confirm `BUILD SUCCESS`.
+
+### Current Security Scope
+
+The current implementation uses Spring Security with a temporary in-memory development user. Database-backed user authentication and role-based authorization remain planned for a subsequent development phase. This configuration is intended for development and is not a production-ready authentication design.
