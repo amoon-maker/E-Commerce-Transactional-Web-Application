@@ -419,9 +419,9 @@
 }
 
 .store-footer {
-  padding: 35px 0;
-  background: var(--dark);
-  color: var(--white);
+  padding: 22px 0;
+  background: var(--green);
+  color: var(--cream);
 }
 
 .footer-content {
@@ -431,24 +431,9 @@
   gap: 20px;
   text-align: center;
 }
-
-.footer-content img {
-  width: 120px;
-  max-height: 55px;
-  padding: 5px;
-  border-radius: 4px;
-  background: var(--white);
-  object-fit: contain;
-}
-
-.footer-content p {
-  margin: 0;
-  color: #eee7dd;
-}
-
 .footer-content > span {
-  color: #d1c6b8;
-  font-size: 0.82rem;
+  font-size: 0.72rem;
+  color: var(--cream);
 }
 
 @media (max-width: 991px) {
@@ -471,13 +456,10 @@
   }
 }
 
+
 @media (max-width: 575px) {
   .hero-section {
     padding: 45px 0;
-  }
-
-  .hero-image {
-    height: 280px;
   }
 
   .products-section {
@@ -498,25 +480,60 @@
   }
 
   .cart-item {
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: 60px minmax(0, 1fr);
     gap: 12px;
   }
 
+  .cart-item > img {
+    width: 60px;
+    height: 60px;
+  }
+
   .cart-item-details {
-    min-width: 130px;
+    min-width: 0;
   }
 
   .quantity-controls {
-    margin-left: auto;
+    grid-column: 1 / 2;
+    margin-left: 0;
   }
 
   .cart-item-total {
-    min-width: auto;
+    grid-column: 2 / 3;
+    text-align: right;
   }
+  .product-quantity-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--green);
+  border-radius: 30px;
+  background: var(--white);
+}
 
-  .footer-content {
-    align-items: center;
-    flex-direction: column;
-    text-align: center;
-  }
+.product-quantity-controls button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--green);
+  color: var(--white);
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.product-quantity-controls button:hover {
+  background: var(--dark);
+}
+
+.product-quantity-controls span {
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 }

@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+
+import { useEffect, useMemo, useState } from 'react'
 import {
   Badge,
   Button,
@@ -21,7 +22,11 @@ import groupImage from './assets/groupummhamza.png'
 
 import './App.css'
 
-type Category = 'All Products' | 'Dairy & Cheese' | 'Traditional Pantry' | 'Herbs & Spices'
+type Category =
+  | 'All Products'
+  | 'Dairy & Cheese'
+  | 'Traditional Pantry'
+  | 'Herbs & Spices'
 
 type Product = {
   id: number
@@ -37,62 +42,77 @@ type CartItem = {
   quantity: number
 }
 
-const products: Product[] = [
-  {
-    id: 1,
-    name: 'Cheese Thyme',
-    category: 'Dairy & Cheese',
-    description: 'A traditional cheese and thyme combination.',
-    price: 8.99,
-    image: cheeseImage,
-  },
-  {
-    id: 2,
-    name: 'Labana Shatta',
-    category: 'Dairy & Cheese',
-    description: 'A traditional labneh product with a spicy twist.',
-    price: 7.99,
-    image: labanaImage,
-  },
-  {
-    id: 3,
-    name: 'Sumac Baladi',
-    category: 'Herbs & Spices',
-    description: 'A traditional pantry essential with a tangy flavour.',
-    price: 5.99,
-    image: sumacImage,
-  },
-  {
-    id: 4,
-    name: 'Zatar Baladi',
-    category: 'Herbs & Spices',
-    description: 'A classic Middle Eastern seasoning.',
-    price: 6.49,
-    image: zatarImage,
-  },
-  {
-    id: 5,
-    name: 'Zatar Pomegranate Molasse',
-    category: 'Traditional Pantry',
-    description: 'A distinctive combination inspired by traditional flavours.',
-    price: 7.49,
-    image: molasseImage,
-  },
-]
-
-const categories: Category[] = [
-  'All Products',
-  'Dairy & Cheese',
-  'Traditional Pantry',
-  'Herbs & Spices',
-]
-
 function App() {
   const [selectedCategory, setSelectedCategory] =
     useState<Category>('All Products')
   const [searchTerm, setSearchTerm] = useState('')
   const [cart, setCart] = useState<CartItem[]>([])
   const [cartOpen, setCartOpen] = useState(false)
+  const [checkoutOpen, setCheckoutOpen] = useState(false)
+
+  const [customer, setCustomer] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+  })
+useEffect(() => {
+  if (cartOpen) {
+    document.getElementById('shopping-cart')?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    })
+  }
+}, [cartOpen])
+  const products: Product[] = [
+    {
+      id: 1,
+      name: 'Cheese Thyme',
+      category: 'Dairy & Cheese',
+      description: 'A traditional cheese and thyme combination.',
+      price: 8.99,
+      image: cheeseImage,
+    },
+    {
+      id: 2,
+      name: 'Labana Shatta',
+      category: 'Dairy & Cheese',
+      description: 'A traditional labneh product with a spicy twist.',
+      price: 7.99,
+      image: labanaImage,
+    },
+    {
+      id: 3,
+      name: 'Sumac Baladi',
+      category: 'Herbs & Spices',
+      description: 'A traditional pantry essential with a tangy flavour.',
+      price: 5.99,
+      image: sumacImage,
+    },
+    {
+      id: 4,
+      name: 'Zatar Baladi',
+      category: 'Herbs & Spices',
+      description: 'A classic Middle Eastern seasoning.',
+      price: 6.49,
+      image: zatarImage,
+    },
+    {
+      id: 5,
+      name: 'Zatar Pomegranate Molasse',
+      category: 'Traditional Pantry',
+      description: 'A distinctive combination inspired by traditional flavours.',
+      price: 7.49,
+      image: molasseImage,
+    },
+  ]
+
+  const categories: Category[] = [
+    'All Products',
+    'Dairy & Cheese',
+    'Traditional Pantry',
+    'Herbs & Spices',
+  ]
 
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
@@ -148,6 +168,13 @@ function App() {
     )
   }
 
+  function handleCheckout(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    window.alert(
+      'This is a frontend demonstration. No order has been placed yet.',
+    )
+  }
+
   return (
     <div className="storefront">
       <div className="announcement-bar">
@@ -171,7 +198,10 @@ function App() {
 
             <Button
               className="cart-button"
-              onClick={() => setCartOpen(!cartOpen)}
+              onClick={() => {
+                setCartOpen(!cartOpen)
+                setCheckoutOpen(false)
+              }}
               aria-expanded={cartOpen}
             >
               Cart <Badge bg="light" text="dark">{cartCount}</Badge>
@@ -198,10 +228,7 @@ function App() {
                   culture, and hospitality that bring us together.
                 </p>
 
-                <Button
-                  className="primary-button"
-                  href="#products"
-                >
+                <Button className="primary-button" href="#products">
                   Explore Our Products <span aria-hidden="true">→</span>
                 </Button>
               </Col>
@@ -209,10 +236,10 @@ function App() {
               <Col lg={6}>
                 <div className="hero-image-wrapper">
                   <img
-  src={groupImage}
-  alt="A selection of Um Hamza traditional food products"
-  className="hero-image"
-/>
+                    src={groupImage}
+                    alt="A selection of Um Hamza traditional food products"
+                    className="hero-image"
+                  />
                   <div className="hero-image-caption">
                     <span>UM HAMZA</span>
                     <span>Tradition in every taste</span>
@@ -280,22 +307,43 @@ function App() {
                       </span>
 
                       <Card.Title>{product.name}</Card.Title>
-
                       <Card.Text>{product.description}</Card.Text>
 
                       <div className="product-card-footer mt-auto">
-                        <span className="product-price">
-                          ${product.price.toFixed(2)}
-                        </span>
+  <span className="product-price">
+    ${product.price.toFixed(2)}
+  </span>
 
-                        <Button
-                          className="add-button"
-                          onClick={() => addToCart(product)}
-                          aria-label={`Add ${product.name} to cart`}
-                        >
-                          + Add
-                        </Button>
-                      </div>
+  {cart.find((item) => item.product.id === product.id) ? (
+    <div className="product-quantity-controls">
+      <Button
+        onClick={() => changeQuantity(product.id, -1)}
+        aria-label={`Decrease ${product.name} quantity`}
+      >
+        −
+      </Button>
+
+      <span>
+        {cart.find((item) => item.product.id === product.id)?.quantity} in cart
+      </span>
+
+      <Button
+        onClick={() => changeQuantity(product.id, 1)}
+        aria-label={`Increase ${product.name} quantity`}
+      >
+        +
+      </Button>
+    </div>
+  ) : (
+    <Button
+      className="add-button"
+      onClick={() => addToCart(product)}
+      aria-label={`Add ${product.name} to cart`}
+    >
+      + Add
+    </Button>
+  )}
+</div>
                     </Card.Body>
                   </Card>
                 </Col>
@@ -321,95 +369,209 @@ function App() {
         </section>
 
         {cartOpen && (
-          <section className="cart-section" aria-label="Shopping cart">
+          <section
+  id="shopping-cart"
+  className="cart-section"
+  aria-label="Shopping cart"
+>
             <Container>
               <div className="cart-panel">
-                <div className="cart-heading">
-                  <div>
-                    <span className="eyebrow">YOUR SELECTION</span>
-                    <h2>Shopping Cart</h2>
-                  </div>
-
-                  <Button
-                    variant="outline-secondary"
-                    onClick={() => setCartOpen(false)}
-                  >
-                    Close
-                  </Button>
-                </div>
-
-                {cart.length === 0 ? (
-                  <p className="empty-cart">
-                    Your cart is empty. Explore our products to get started.
-                  </p>
-                ) : (
-                  <>
-                    {cart.map((item) => (
-                      <div className="cart-item" key={item.product.id}>
-                        <img
-                          src={item.product.image}
-                          alt={item.product.name}
-                        />
-
-                        <div className="cart-item-details">
-                          <strong>{item.product.name}</strong>
-                          <span>${item.product.price.toFixed(2)} each</span>
-                        </div>
-
-                        <div className="quantity-controls">
-                          <Button
-                            variant="outline-secondary"
-                            onClick={() => changeQuantity(item.product.id, -1)}
-                            aria-label={`Decrease ${item.product.name} quantity`}
-                          >
-                            −
-                          </Button>
-
-                          <span>{item.quantity}</span>
-
-                          <Button
-                            variant="outline-secondary"
-                            onClick={() => changeQuantity(item.product.id, 1)}
-                            aria-label={`Increase ${item.product.name} quantity`}
-                          >
-                            +
-                          </Button>
-                        </div>
-
-                        <strong className="cart-item-total">
-                          ${(item.product.price * item.quantity).toFixed(2)}
-                        </strong>
+                {checkoutOpen ? (
+                  <div className="checkout-form">
+                    <div className="cart-heading">
+                      <div>
+                        <span className="eyebrow">YOUR ORDER</span>
+                        <h2>Checkout</h2>
                       </div>
-                    ))}
 
-                    <div className="cart-total">
-                      <span>Subtotal</span>
-                      <strong>${cartTotal.toFixed(2)}</strong>
+                      <Button
+                        variant="outline-secondary"
+                        onClick={() => setCartOpen(false)}
+                      >
+                        Close
+                      </Button>
                     </div>
 
-                    <p className="cart-note">
-                      Sample prices for the school project. Checkout is not
-                      connected yet.
+                    <p>
+                      Please enter your details to continue with your order.
                     </p>
 
-                    <Button
-                      className="primary-button"
-                      onClick={() =>
-                        window.alert(
-                          'Checkout will be implemented when the backend is connected.',
-                        )
-                      }
-                    >
-                      Continue to Checkout
-                    </Button>
+                    <Form onSubmit={handleCheckout}>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Full Name</Form.Label>
+                        <Form.Control
+                          type="text"
+                          placeholder="Enter your full name"
+                          value={customer.name}
+                          onChange={(event) =>
+                            setCustomer({
+                              ...customer,
+                              name: event.target.value,
+                            })
+                          }
+                          required
+                        />
+                      </Form.Group>
 
-                    <Button
-                      variant="link"
-                      className="clear-cart-button"
-                      onClick={() => setCart([])}
-                    >
-                      Clear Cart
-                    </Button>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Email Address</Form.Label>
+                        <Form.Control
+                          type="email"
+                          placeholder="Enter your email"
+                          value={customer.email}
+                          onChange={(event) =>
+                            setCustomer({
+                              ...customer,
+                              email: event.target.value,
+                            })
+                          }
+                          required
+                        />
+                      </Form.Group>
+
+                      <Form.Group className="mb-3">
+                        <Form.Label>Phone Number</Form.Label>
+                        <Form.Control
+                          type="tel"
+                          placeholder="Enter your phone number"
+                          value={customer.phone}
+                          onChange={(event) =>
+                            setCustomer({
+                              ...customer,
+                              phone: event.target.value,
+                            })
+                          }
+                          required
+                        />
+                      </Form.Group>
+
+                      <Form.Group className="mb-3">
+                        <Form.Label>Delivery Address</Form.Label>
+                        <Form.Control
+                          as="textarea"
+                          rows={3}
+                          placeholder="Enter your delivery address"
+                          value={customer.address}
+                          onChange={(event) =>
+                            setCustomer({
+                              ...customer,
+                              address: event.target.value,
+                            })
+                          }
+                          required
+                        />
+                      </Form.Group>
+
+                      <div className="cart-total">
+                        <span>Order Total</span>
+                        <strong>${cartTotal.toFixed(2)}</strong>
+                      </div>
+
+                      <Button type="submit" className="primary-button">
+                        Place Order
+                      </Button>
+
+                      <Button
+                        variant="link"
+                        onClick={() => setCheckoutOpen(false)}
+                      >
+                        Back to Cart
+                      </Button>
+                    </Form>
+                  </div>
+                ) : (
+                  <>
+                    <div className="cart-heading">
+                      <div>
+                        <span className="eyebrow">YOUR SELECTION</span>
+                        <h2>Shopping Cart</h2>
+                      </div>
+
+                      <Button
+                        variant="outline-secondary"
+                        onClick={() => setCartOpen(false)}
+                      >
+                        Close
+                      </Button>
+                    </div>
+
+                    {cart.length === 0 ? (
+                      <p className="empty-cart">
+                        Your cart is empty. Explore our products to get started.
+                      </p>
+                    ) : (
+                      <>
+                        {cart.map((item) => (
+                          <div className="cart-item" key={item.product.id}>
+                            <img
+                              src={item.product.image}
+                              alt={item.product.name}
+                            />
+
+                            <div className="cart-item-details">
+                              <strong>{item.product.name}</strong>
+                              <span>
+                                ${item.product.price.toFixed(2)} each
+                              </span>
+                            </div>
+
+                            <div className="quantity-controls">
+                              <Button
+                                variant="outline-secondary"
+                                onClick={() =>
+                                  changeQuantity(item.product.id, -1)
+                                }
+                                aria-label={`Decrease ${item.product.name} quantity`}
+                              >
+                                −
+                              </Button>
+
+                              <span>{item.quantity}</span>
+
+                              <Button
+                                variant="outline-secondary"
+                                onClick={() =>
+                                  changeQuantity(item.product.id, 1)
+                                }
+                                aria-label={`Increase ${item.product.name} quantity`}
+                              >
+                                +
+                              </Button>
+                            </div>
+
+                            <strong className="cart-item-total">
+                              $
+                              {(item.product.price * item.quantity).toFixed(2)}
+                            </strong>
+                          </div>
+                        ))}
+
+                        <div className="cart-total">
+                          <span>Subtotal</span>
+                          <strong>${cartTotal.toFixed(2)}</strong>
+                        </div>
+
+                        <p className="cart-note">
+                          Sample prices for the school project. Checkout is
+                          not connected yet.
+                        </p>
+
+                        <Button
+                          className="primary-button"
+                          onClick={() => setCheckoutOpen(true)}
+                        >
+                          Continue to Checkout
+                        </Button>
+
+                        <Button
+                          variant="link"
+                          className="clear-cart-button"
+                          onClick={() => setCart([])}
+                        >
+                          Clear Cart
+                        </Button>
+                      </>
+                    )}
                   </>
                 )}
               </div>
@@ -433,7 +595,6 @@ function App() {
       <footer className="store-footer">
         <Container>
           <div className="footer-content">
-
             <span>
               © {new Date().getFullYear()} Um Hamza Foodstuff Factory
             </span>
