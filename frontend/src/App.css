@@ -457,6 +457,7 @@
 }
 
 
+
 @media (max-width: 575px) {
   .hero-section {
     padding: 45px 0;
@@ -503,7 +504,10 @@
     grid-column: 2 / 3;
     text-align: right;
   }
-  .product-quantity-controls {
+}
+
+/* Product quantity controls */
+.product-quantity-controls {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -536,4 +540,104 @@
   white-space: nowrap;
 }
 
+/* Checkout order summary */
+.checkout-order-summary {
+  margin: 25px 0 30px;
+  padding: 22px;
+  border: 1px solid #e7ded2;
+  border-radius: 8px;
+  background: var(--cream);
+}
+
+.checkout-order-summary h3 {
+  margin-bottom: 18px;
+  color: var(--dark);
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.checkout-summary-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 12px 0;
+  color: var(--brown);
+  font-size: 0.95rem;
+}
+
+.checkout-summary-item strong {
+  color: var(--dark);
+  white-space: nowrap;
+}
+
+.checkout-summary-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-top: 15px;
+  padding-top: 12px;
+  border-top: 1px solid #ded5c9;
+  color: var(--dark);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+/* Order confirmation */
+.order-confirmation {
+  max-width: 650px;
+  margin: 0 auto;
+  padding: 35px 20px;
+  text-align: center;
+}
+
+.confirmation-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 65px;
+  height: 65px;
+  margin: 0 auto 22px;
+  border-radius: 50%;
+  background: var(--green);
+  color: var(--white);
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.order-confirmation h2 {
+  margin-bottom: 15px;
+  color: var(--dark);
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.order-confirmation > p {
+  color: var(--brown);
+  line-height: 1.7;
+}
+
+.confirmation-notice {
+  margin: 22px 0;
+  padding: 14px;
+  border: 1px solid #e7ded2;
+  border-radius: 6px;
+  background: var(--cream);
+  font-size: 0.9rem;
+}
+
+.order-confirmation h3 {
+  margin: 30px 0 15px;
+  text-align: left;
+  font-size: 1.2rem;
+}
+
+.order-confirmation .checkout-summary-item,
+.order-confirmation .checkout-summary-total {
+  text-align: left;
+}
+
+.order-confirmation .primary-button {
+  margin-top: 25px;
 }

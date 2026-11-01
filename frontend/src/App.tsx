@@ -49,7 +49,7 @@ function App() {
   const [cart, setCart] = useState<CartItem[]>([])
   const [cartOpen, setCartOpen] = useState(false)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
-
+const [orderConfirmed, setOrderConfirmed] = useState(false)
   const [customer, setCustomer] = useState({
     name: '',
     email: '',
@@ -169,11 +169,9 @@ useEffect(() => {
   }
 
   function handleCheckout(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    window.alert(
-      'This is a frontend demonstration. No order has been placed yet.',
-    )
-  }
+  event.preventDefault()
+  setOrderConfirmed(true)
+}
 
   return (
     <div className="storefront">
@@ -376,7 +374,60 @@ useEffect(() => {
 >
             <Container>
               <div className="cart-panel">
-                {checkoutOpen ? (
+                {orderConfirmed ? (
+  <div className="order-confirmation">
+    <div className="confirmation-icon">✓</div>
+
+    <span className="eyebrow">CHECKOUT COMPLETE</span>
+
+    <h2>Thank you, {customer.name}!</h2>
+
+    <p>
+      Your checkout demonstration has been completed.
+    </p>
+
+    <p className="confirmation-notice">
+      This is a frontend demonstration. No real order has
+      been placed or saved.
+    </p>
+
+    <h3>Order Summary</h3>
+
+    {cart.map((item) => (
+      <div className="checkout-summary-item" key={item.product.id}>
+        <span>
+          {item.product.name} × {item.quantity}
+        </span>
+        <strong>
+          ${(item.product.price * item.quantity).toFixed(2)}
+        </strong>
+      </div>
+    ))}
+
+    <div className="checkout-summary-total">
+      <span>Order Total</span>
+      <strong>${cartTotal.toFixed(2)}</strong>
+    </div>
+
+    <Button
+  className="primary-button"
+  onClick={() => {
+    setOrderConfirmed(false)
+    setCheckoutOpen(false)
+    setCartOpen(false)
+    setCart([])
+    setCustomer({
+      name: '',
+      email: '',
+      phone: '',
+      address: '',
+    })
+  }}
+>
+  Return to Storefront
+</Button>
+  </div>
+) : checkoutOpen ? (
                   <div className="checkout-form">
                     <div className="cart-heading">
                       <div>
@@ -393,10 +444,31 @@ useEffect(() => {
                     </div>
 
                     <p>
-                      Please enter your details to continue with your order.
-                    </p>
+  Please enter your details to continue with your order.
+</p>
 
-                    <Form onSubmit={handleCheckout}>
+<div className="checkout-order-summary">
+  <h3>Order Summary</h3>
+
+  {cart.map((item) => (
+    <div className="checkout-summary-item" key={item.product.id}>
+      <span>
+        {item.product.name} × {item.quantity}
+      </span>
+
+      <strong>
+        ${(item.product.price * item.quantity).toFixed(2)}
+      </strong>
+    </div>
+  ))}
+
+  <div className="checkout-summary-total">
+    <span>Subtotal</span>
+    <strong>${cartTotal.toFixed(2)}</strong>
+  </div>
+</div>
+
+<Form onSubmit={handleCheckout}>
                       <Form.Group className="mb-3">
                         <Form.Label>Full Name</Form.Label>
                         <Form.Control
