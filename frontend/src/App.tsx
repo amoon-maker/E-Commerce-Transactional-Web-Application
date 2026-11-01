@@ -50,6 +50,7 @@ function App() {
   const [cartOpen, setCartOpen] = useState(false)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
 const [orderConfirmed, setOrderConfirmed] = useState(false)
+const [darkMode, setDarkMode] = useState(false)
   const [customer, setCustomer] = useState({
     name: '',
     email: '',
@@ -174,7 +175,7 @@ useEffect(() => {
 }
 
   return (
-    <div className="storefront">
+    <div className={`storefront ${darkMode ? 'dark-mode' : ''}`}>
       <div className="announcement-bar">
         A taste of tradition, made to bring people together.
       </div>
@@ -193,7 +194,14 @@ useEffect(() => {
               <Nav.Link href="#products">Our Products</Nav.Link>
               <Nav.Link href="#about">Our Story</Nav.Link>
             </Nav>
-
+<Button
+  className="theme-toggle-button"
+  variant="outline-secondary"
+  onClick={() => setDarkMode(!darkMode)}
+  aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+>
+  {darkMode ? '☀' : '☾'}
+</Button>
             <Button
               className="cart-button"
               onClick={() => {

@@ -641,3 +641,112 @@
 .order-confirmation .primary-button {
   margin-top: 25px;
 }
+
+
+.storefront.dark-mode {
+  background: #1d231e;
+  color: #f3eee5;
+}
+
+.storefront.dark-mode .store-navbar,
+.storefront.dark-mode .product-card,
+.storefront.dark-mode .cart-panel {
+  background: #252d26;
+  border-color: #465344;
+}
+
+.storefront.dark-mode .navigation-links .nav-link,
+.storefront.dark-mode .product-card .card-title,
+.storefront.dark-mode .product-price,
+.storefront.dark-mode .cart-heading h2,
+.storefront.dark-mode .cart-item-details strong,
+.storefront.dark-mode .cart-item-total,
+.storefront.dark-mode .cart-total,
+.storefront.dark-mode .about-section h2 {
+  color: #f3eee5;
+}
+
+.storefront.dark-mode .hero-section,
+.storefront.dark-mode .cart-section {
+  background: #202820;
+}
+
+.storefront.dark-mode .about-section {
+  background: #303a30;
+  color: #f3eee5;
+}
+
+.storefront.dark-mode .hero-section h1,
+.storefront.dark-mode .section-heading h2 {
+  color: #f3eee5;
+}
+
+.storefront.dark-mode .hero-description,
+.storefront.dark-mode .section-heading p,
+.storefront.dark-mode .product-card .card-text,
+.storefront.dark-mode .cart-item-details span,
+.storefront.dark-mode .about-section p {
+  color: #d2c8b8;
+}
+
+.storefront.dark-mode .product-image-wrapper,
+.storefront.dark-mode .cart-item > img {
+  background: #303a30;
+}
+
+.storefront.dark-mode .category-button,
+.storefront.dark-mode .product-search,
+.storefront.dark-mode .form-control {
+  background: #252d26;
+  border-color: #596957;
+  color: #f3eee5;
+}
+
+.storefront.dark-mode .category-button {
+  color: #f3eee5;
+}
+
+.storefront.dark-mode .category-button:hover,
+.storefront.dark-mode .category-button.active {
+  background: var(--green);
+}
+
+.storefront.dark-mode .form-control::placeholder,
+.storefront.dark-mode .product-search::placeholder {
+  color: #b9b1a5;
+}
+
+.storefront.dark-mode .checkout-order-summary {
+  background: #303a30;
+  border-color: #596957;
+}
+
+.storefront.dark-mode .checkout-summary-item,
+.storefront.dark-mode .checkout-summary-total {
+  color: #f3eee5;
+  border-color: #596957;
+}
+
+.storefront.dark-mode .empty-cart,
+.storefront.dark-mode .cart-note,
+.storefront.dark-mode .empty-results p {
+  color: #d2c8b8;
+}
+
+.storefront.dark-mode .cart-item {
+  border-color: #465344;
+}
+
+.storefront.dark-mode .theme-toggle-button {
+  border-color: #aab99f;
+  color: #f3eee5;
+}
+
+.storefront.dark-mode .theme-toggle-button:hover {
+  background: #465a40;
+  color: #ffffff;
+}
+
+.storefront.dark-mode .store-footer {
+  background: #303a30;
+}
