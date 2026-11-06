@@ -148,6 +148,7 @@ E-Commerce-Transactional-Web-Application/
 ├── docs/          # Project reports and documentation
 ├── frontend/      # React e-commerce storefront
 ├── testing/       # Testing and verification resources
+├── screenshots/   
 └── README.md
 ```
 
