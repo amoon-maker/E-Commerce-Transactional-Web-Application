@@ -1,136 +1,164 @@
-# E-Commerce Transactional Web Application
+E-Commerce Transactional Web Application
 
-Semester project for developing a transactional e-commerce web application.
+A full-stack academic e-commerce project developed for the Transactional Web Applications course.
 
-## Project Overview
+**Project:** Um Hamza Food Stuff e-commerce project
+**Repository:** E-Commerce-Transactional-Web-Application  
+**Current milestone:** Quiz 3 — Frontend Development
 
-This project is developed as part of my studies in Transactional Web Applications. It follows a phased development approach, beginning with database design and continuing through backend development, frontend development, testing, and deployment.
+---
 
-## Project Structure
+## 1. Project Overview
 
-- `database/` — conceptual schema, logical schema, SQL Server implementation, documentation, diagrams, screenshots, and database testing
-- `backend/` — backend application development
-- `frontend/` — frontend application development
-- `testing/` — testing and verification
-- `deployment/` — deployment and delivery work
+This project aims to develop an e-commerce platform for Um Hamza Food Stuff Factory, presenting traditional food products through a user-friendly shopping experience.
 
-## Database
+The application is being developed incrementally, covering database design, REST API development, frontend implementation, testing, and eventual transactional integration.
 
-The Database Completion phase includes:
+## 2. Development Milestones
 
-- Conceptual schema
-- Logical schema
-- Microsoft SQL Server implementation
-- Database constraints and relationships
-- Sample data
-- Inventory/status trigger
-- Database verification and testing
+| Milestone | Scope | Progress |
+|---|---|---|
+| Quiz 1 | Database design, SQL Server implementation, relationships, constraints, sample data and testing | Completed |
+| Quiz 2 | Spring Boot REST API, Product and Vendor CRUD, validation, security and Swagger documentation | Completed |
+| Quiz 3 | React storefront, product catalogue, search, shopping cart, checkout, responsive design and dark mode | Implemented and tested |
 
-## Development Approach
+## 3. Technology Stack
 
-The project is developed incrementally, with each phase building on the previous work while maintaining organized documentation and version control.
+**Frontend**
+- React 19, TypeScript and Vite
+- React Bootstrap and Bootstrap 5
+- CSS
 
-## Academic Project
+**Backend**
+- Java 21 and Spring Boot
+- Spring Data JPA / Hibernate
+- Spring Security
+- Microsoft SQL Server
+- Maven and Swagger / OpenAPI
 
-This repository contains academic project work developed for educational purposes.
+**Database**
+- Microsoft SQL Server
+- Relational database design, constraints, triggers and sample data
 
-## Fresh Database Setup and Verification
+## 4. Current Application Features
 
-### Prerequisites
+The React storefront currently includes:
 
-- Microsoft SQL Server must be running and accessible.
-- Connect to the correct SQL Server instance using VS Code or another SQL client that supports T-SQL.
-- Run the scripts in the order listed below.
+- Um Hamza branding and product presentation.
+- Product catalogue with product images and descriptions.
+- Product search and category filtering.
+- Shopping cart with quantity management.
+- Automatic subtotal and order total calculations.
+- Checkout form with required-field and email validation.
+- Order confirmation demonstration.
+- Responsive desktop and mobile layouts.
+- Light and dark display modes.
 
-### Setup Order
+## 5. Running the Application
 
-1. `01_create_database.sql` — creates `UmHamzaECommerce` if it does not already exist.
-2. `02_create_tables.sql` — creates the tables, primary keys, foreign keys, constraints, and indexes.
-3. `03_insert_sample_data.sql` — inserts illustrative roles, accounts, categories, products, and related sample records.
-4. `04_create_triggers.sql` — creates the inventory/status synchronization trigger.
-5. `05_insert_test_order.sql` — inserts a demonstration order, item, and status-history record for testing.
-6. `06_test_database.sql` — displays database structure, sample data, inventory behavior, and relationship information.
-7. `07_test_address_ownership.sql` — verifies that an order cannot reference an address belonging to another customer.
-8. `08_enforce_user_role_consistency.sql` — creates the user/profile consistency triggers.
-9. `09_test_user_role_consistency.sql` — tests invalid user/vendor associations, role changes, role names, and customer-profile deletion.
-10. `10_enforce_monetary_consistency.sql` — applies order and invoice monetary consistency constraints.
-11. `11_test_monetary_consistency.sql` — verifies that invalid order and invoice totals and excessive discounts are rejected.
-12. `12_test_inventory_trigger.sql` — tests inserts, stock updates, status-only updates, and multi-row updates.
+### Frontend
 
-### Important Notes
+**Requirements:** Node.js and npm.
 
-- For a complete rebuild, use a fresh database or a separate test database. The table-creation and sample-data scripts are not intended to be repeatedly executed against an already populated database.
-- The database creation script does not drop an existing database.
-- Do not run the complete setup sequence repeatedly on a populated database; duplicate records or existing objects may cause errors.
-- The negative-test scripts attempt invalid operations and use transaction rollback to avoid leaving their test changes behind.
-- Monetary values use SQL Server `DECIMAL` types. The order and invoice constraints validate component totals and prevent discounts from exceeding subtotals.
-- The inventory trigger synchronizes product status with stock quantity, including multi-row operations.
-- A copy of the setup scripts was verified against a separate fresh test database. The original working database was preserved during verification.
-
-## Backend — Spring Boot REST API
-
-### Prerequisites
-
-- Java 21 or above
-- Microsoft SQL Server running and accessible
-- Maven Wrapper included in `backend/`
-
-### Configure Environment Variables
-
-The backend reads database credentials and the temporary development login from environment variables. Do not commit actual credentials to GitHub.
-
-The example below assumes a local SQL Server instance exposed on port `14330` and a database named `UmHamzaECommerce`. Adjust the server address, port, database name, and SQL Server username to match your own setup.
-
-From the project root, configure the variables:
+From the project root:
 
 ```bash
-export DB_URL='jdbc:sqlserver://localhost:14330;databaseName=UmHamzaECommerce;encrypt=true;trustServerCertificate=true'
-export DB_USERNAME='YOUR_SQL_SERVER_USERNAME'
-
-printf "SQL Server password: "
-read -s DB_PASSWORD
-printf '\n'
-export DB_PASSWORD
-
-printf "Temporary development password: "
-read -s APP_DEV_PASSWORD
-printf '\n'
-export APP_DEV_PASSWORD
+cd frontend
+npm install
+npm run dev
 ```
 
-Replace `YOUR_SQL_SERVER_USERNAME` with a SQL Server login that has the required permissions for the database. Type each password when prompted; password characters will not appear on screen.
+Open the local development URL displayed in the terminal, usually:
 
-`APP_DEV_PASSWORD` is a locally chosen password for the temporary development login named `user`. Do not include actual passwords in this README or commit them to version control.
+http://localhost:5173/
 
-### Run the Backend
+To verify the production build, run from the project root:
 
-From the project root, after configuring the environment variables:
+```bash
+npm --prefix frontend run build
+```
+
+### Backend
+
+**Requirements:** Java 21 or later and an accessible SQL Server instance.
+
+Configure the following environment variables locally:
+
+- `DB_URL`
+- `DB_USERNAME`
+- `DB_PASSWORD`
+- `APP_DEV_PASSWORD`
+
+Refer to the backend configuration and project setup instructions before starting the service.
+
+From the project root:
 
 ```bash
 ./backend/mvnw -f backend/pom.xml spring-boot:run
 ```
 
-The API uses port `8080` by default when startup succeeds.
+The backend uses port `8080` by default.
 
-### Swagger Documentation
+Swagger documentation:
 
-After starting the backend, open:
+http://localhost:8080/swagger-ui/index.html
 
-- Swagger UI: http://localhost:8080/swagger-ui.html
-- OpenAPI JSON: http://localhost:8080/v3/api-docs
-
-Swagger documentation is permitted without authentication. API endpoints require authentication under the current development security configuration.
-
-### Run Tests
-
-From the project root:
+Run backend tests:
 
 ```bash
 ./backend/mvnw -f backend/pom.xml test
 ```
 
-Review the test results and confirm `BUILD SUCCESS`.
+### Database
 
-### Current Security Scope
+The `database/` directory contains the SQL scripts for database creation, table structures, sample data, constraints, triggers and verification.
 
-The current implementation uses Spring Security with a temporary in-memory development user. Database-backed user authentication and role-based authorization remain planned for a subsequent development phase. This configuration is intended for development and is not a production-ready authentication design.
+Follow the documented script execution order when setting up a fresh database.
+
+## 6. Testing and Verification
+
+The current frontend has undergone functional checks covering:
+
+- Product category filtering and search.
+- Shopping cart additions, quantity changes, removal and totals.
+- Empty-cart behavior.
+- Required-field and email validation.
+- Checkout confirmation and return-to-storefront behavior.
+- Dark mode and responsive layouts.
+
+The TypeScript production build was also verified successfully.
+
+The Quiz 2 report documents the backend milestone's API testing, validation, authentication and Swagger verification.
+
+## 7. Current Scope and Next Development Phase
+
+The current storefront uses sample product data and local frontend cart state. Checkout is a demonstration flow; it does not create or persist real orders.
+
+The React frontend is not yet integrated with the Spring Boot API.
+
+Future development will focus on frontend/backend integration, database-backed customer and order operations, authentication, payment workflows and complete transactional processing.
+
+## 8. Repository Structure
+
+```text
+E-Commerce-Transactional-Web-Application/
+├── backend/       # Spring Boot REST API
+├── database/      # SQL Server scripts and database design
+├── deployment/    # Deployment preparation
+├── docs/          # Project reports and documentation
+├── frontend/      # React e-commerce storefront
+├── testing/       # Testing and verification resources
+└── README.md
+```
+
+## 9. Security and Repository Practices
+
+- Database credentials and development passwords are configured through local environment variables.
+- Actual credentials must never be committed to version control.
+- The development authentication configuration is not intended for production use.
+- GitHub is used for source control and incremental project milestones.
+
+---
+
+**Academic Project — Transactional Web Applications**  
+Um Hamza Food Stuff Factory | E-Commerce Transactional Web Application
