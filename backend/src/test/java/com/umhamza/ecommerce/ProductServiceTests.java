@@ -8,6 +8,7 @@ import com.umhamza.ecommerce.entity.Vendor;
 import com.umhamza.ecommerce.repository.ProductRepository;
 import com.umhamza.ecommerce.repository.VendorRepository;
 import com.umhamza.ecommerce.service.ProductService;
+import com.umhamza.ecommerce.service.ProductServiceImpl;
 
 import jakarta.persistence.EntityNotFoundException;
 
@@ -34,7 +35,7 @@ class ProductServiceTests {
         productRepository = mock(ProductRepository.class);
         vendorRepository = mock(VendorRepository.class);
 
-        productService = new ProductService(
+        productService = new ProductServiceImpl(
                 productRepository,
                 vendorRepository
         );
