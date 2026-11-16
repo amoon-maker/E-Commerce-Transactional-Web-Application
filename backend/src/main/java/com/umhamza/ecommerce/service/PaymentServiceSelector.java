@@ -5,18 +5,18 @@ import org.springframework.stereotype.Component;
 @Component
 public class PaymentServiceSelector {
 
-    private final CreditCardPaymentServiceImpl creditCardPaymentService;
-    private final BankPaymentServiceImpl bankPaymentService;
+    private final DebitPaymentImpl debitPayment;
+    private final CreditPaymentImpl creditPayment;
 
     public PaymentServiceSelector(
-            CreditCardPaymentServiceImpl creditCardPaymentService,
-            BankPaymentServiceImpl bankPaymentService) {
+            DebitPaymentImpl debitPayment,
+            CreditPaymentImpl creditPayment) {
 
-        this.creditCardPaymentService = creditCardPaymentService;
-        this.bankPaymentService = bankPaymentService;
+        this.debitPayment = debitPayment;
+        this.creditPayment = creditPayment;
     }
 
-    public PaymentService getPaymentService(String paymentMethod) {
+    public BankService getPaymentService(String paymentMethod) {
 
         if (paymentMethod == null) {
             throw new IllegalArgumentException(
@@ -25,8 +25,8 @@ public class PaymentServiceSelector {
         }
 
         return switch (paymentMethod.trim().toUpperCase()) {
-            case "CREDIT_CARD" -> creditCardPaymentService;
-            case "BANK_TRANSFER" -> bankPaymentService;
+            case "DEBIT" -> debitPayment;
+            case "CREDIT" -> creditPayment;
             default -> throw new IllegalArgumentException(
                     "Unsupported payment method: " + paymentMethod
             );

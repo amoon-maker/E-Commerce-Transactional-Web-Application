@@ -1,9 +1,11 @@
+
 package com.umhamza.ecommerce;
 
-import com.umhamza.ecommerce.service.BankPaymentServiceImpl;
-import com.umhamza.ecommerce.service.CreditCardPaymentServiceImpl;
-import com.umhamza.ecommerce.service.PaymentService;
+import com.umhamza.ecommerce.service.DebitPaymentImpl;
+import com.umhamza.ecommerce.service.CreditPaymentImpl;
+import com.umhamza.ecommerce.service.BankService;
 import com.umhamza.ecommerce.service.PaymentServiceSelector;
+
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -12,65 +14,65 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class PaymentServiceTests {
 
-    private final CreditCardPaymentServiceImpl creditCardService =
-            new CreditCardPaymentServiceImpl();
+    private final DebitPaymentImpl debitService =
+            new DebitPaymentImpl();
 
-    private final BankPaymentServiceImpl bankService =
-            new BankPaymentServiceImpl();
+    private final CreditPaymentImpl creditService =
+            new CreditPaymentImpl();
 
     private final PaymentServiceSelector selector =
-            new PaymentServiceSelector(creditCardService, bankService);
+            new PaymentServiceSelector(debitService, creditService);
 
     @Test
-    void creditCardPaymentShouldProcessValidReference() {
-        String result = creditCardService.processPayment(
-                new BigDecimal("100.00"), "CARD-1234"
+    void creditPaymentShouldProcessValidReference() {
+        String result = creditService.processPayment(
+                new BigDecimal("100.00"), "CREDIT-1234"
         );
 
-        assertTrue(result.contains("Credit card payment processed"));
+        assertTrue(result.contains("Credit payment processed"));
     }
 
     @Test
-    void creditCardPaymentShouldRejectInvalidReference() {
+    void creditPaymentShouldRejectInvalidReference() {
         assertThrows(IllegalArgumentException.class, () ->
-                creditCardService.processPayment(
-                        new BigDecimal("100.00"), "BANK-123456"
+                creditService.processPayment(
+                        new BigDecimal("100.00"), "DEBIT-123456"
                 )
         );
     }
 
     @Test
-    void bankPaymentShouldProcessValidReference() {
-        String result = bankService.processPayment(
-                new BigDecimal("200.00"), "BANK-123456"
+    void debitPaymentShouldProcessValidReference() {
+        String result = debitService.processPayment(
+                new BigDecimal("200.00"), "DEBIT-123456"
         );
 
-        assertTrue(result.contains("Bank transfer payment submitted"));
+        assertTrue(result.contains("Debit payment processed"));
     }
 
     @Test
-    void bankPaymentShouldRejectInvalidReference() {
+    void debitPaymentShouldRejectInvalidReference() {
         assertThrows(IllegalArgumentException.class, () ->
-                bankService.processPayment(
-                        new BigDecimal("200.00"), "CARD-1234"
+                debitService.processPayment(
+                        new BigDecimal("200.00"), "CREDIT-1234"
                 )
         );
     }
 
     @Test
-    void selectorShouldReturnCreditCardImplementation() {
-        PaymentService service =
-                selector.getPaymentService("CREDIT_CARD");
+    void selectorShouldReturnCreditImplementation() {
+        BankService service =
+                selector.getPaymentService("CREDIT");
 
-        assertInstanceOf(CreditCardPaymentServiceImpl.class, service);
+        assertInstanceOf(CreditPaymentImpl.class, service);
     }
 
     @Test
-    void selectorShouldReturnBankImplementation() {
-        PaymentService service =
-                selector.getPaymentService("BANK_TRANSFER");
+    void selectorShouldReturnDebitImplementation() {
+        BankService service =
+                selector.getPaymentService("DEBIT");
 
-        assertInstanceOf(BankPaymentServiceImpl.class, service);
+        assertInstanceOf(DebitPaymentImpl.class, service);
     }
 
     @Test
