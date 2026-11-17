@@ -1,5 +1,5 @@
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Badge,
   Button,
@@ -37,9 +37,28 @@ type Product = {
   image: string
 }
 
+type BackendProduct = {
+  productId: number
+  vendorId: number
+  sku: string
+  productName: string
+  description: string | null
+  price: number
+  salePrice: number | null
+  active: boolean
+  stockQuantity: number
+}
+
 type CartItem = {
   product: Product
   quantity: number
+}
+
+const formatPrice = (amount: number) => {
+  return new Intl.NumberFormat('en-AE', {
+    style: 'currency',
+    currency: 'AED',
+  }).format(amount)
 }
 
 function App() {
@@ -49,22 +68,44 @@ function App() {
   const [cart, setCart] = useState<CartItem[]>([])
   const [cartOpen, setCartOpen] = useState(false)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
-const [orderConfirmed, setOrderConfirmed] = useState(false)
-const [darkMode, setDarkMode] = useState(false)
+  const [orderConfirmed, setOrderConfirmed] = useState(false)
+  const [darkMode, setDarkMode] = useState(false)
   const [customer, setCustomer] = useState({
     name: '',
     email: '',
     phone: '',
     address: '',
   })
-useEffect(() => {
-  if (cartOpen) {
-    document.getElementById('shopping-cart')?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start',
-    })
-  }
-}, [cartOpen])
+
+  // Scroll to cart when it opens
+  useEffect(() => {
+    if (cartOpen) {
+      document.getElementById('shopping-cart')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      })
+    }
+  }, [cartOpen])
+
+  // Load products from backend
+  useEffect(() => {
+    fetch('http://localhost:8080/api/products')
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error('Failed to load products')
+        }
+
+        return response.json()
+      })
+      .then((data: BackendProduct[]) => {
+        const activeProducts = data.filter((product) => product.active)
+        console.log('Backend products:', activeProducts)
+      })
+      .catch((error) => {
+        console.error('Error loading products:', error)
+      })
+  }, [])
+
   const products: Product[] = [
     {
       id: 1,
@@ -115,19 +156,18 @@ useEffect(() => {
     'Herbs & Spices',
   ]
 
-  const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
-      const matchesCategory =
-        selectedCategory === 'All Products' ||
-        product.category === selectedCategory
+  const filteredProducts = products.filter((product) => {
+    const matchesCategory =
+      selectedCategory === 'All Products' ||
+      product.category === selectedCategory
 
-      const matchesSearch = product.name
-        .toLowerCase()
-        .includes(searchTerm.trim().toLowerCase())
+    const matchesSearch = product.name
+      .toLowerCase()
+      .includes(searchTerm.trim().toLowerCase())
 
-      return matchesCategory && matchesSearch
-    })
-  }, [products, selectedCategory, searchTerm])
+    return matchesCategory && matchesSearch
+  })
+
 
   const cartCount = cart.reduce(
     (total, item) => total + item.quantity,
@@ -170,9 +210,9 @@ useEffect(() => {
   }
 
   function handleCheckout(event: React.FormEvent<HTMLFormElement>) {
-  event.preventDefault()
-  setOrderConfirmed(true)
-}
+    event.preventDefault()
+    setOrderConfirmed(true)
+  }
 
   return (
     <div className={`storefront ${darkMode ? 'dark-mode' : ''}`}>
@@ -194,14 +234,16 @@ useEffect(() => {
               <Nav.Link href="#products">Our Products</Nav.Link>
               <Nav.Link href="#about">Our Story</Nav.Link>
             </Nav>
-<Button
-  className="theme-toggle-button"
-  variant="outline-secondary"
-  onClick={() => setDarkMode(!darkMode)}
-  aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
->
-  {darkMode ? '☀' : '☾'}
-</Button>
+
+            <Button
+              className="theme-toggle-button"
+              variant="outline-secondary"
+              onClick={() => setDarkMode(!darkMode)}
+              aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {darkMode ? '☀' : '☾'}
+            </Button>
+
             <Button
               className="cart-button"
               onClick={() => {
@@ -316,52 +358,52 @@ useEffect(() => {
                       <Card.Text>{product.description}</Card.Text>
 
                       <div className="product-card-footer mt-auto">
-  <span className="product-price">
-    ${product.price.toFixed(2)}
-  </span>
-  {cart.find((item) => item.product.id === product.id) ? (
-    <div className="product-actions">
-      <div className="product-quantity-controls">
-        <Button
-  onClick={() => changeQuantity(product.id, -1)}
-  aria-label={`Decrease ${product.name} quantity`}
->
-  −
-</Button>
+                        <span className="product-price">
+                          {formatPrice(product.price)}
+                        </span>
 
-        <span>
-          {cart.find((item) => item.product.id === product.id)?.quantity} in cart
-        </span>
+                        {cart.find((item) => item.product.id === product.id) ? (
+                          <div className="product-actions">
+                            <div className="product-quantity-controls">
+                              <Button
+                                onClick={() => changeQuantity(product.id, -1)}
+                                aria-label={`Decrease ${product.name} quantity`}
+                              >
+                                −
+                              </Button>
 
-        <Button
-          onClick={() => changeQuantity(product.id, 1)}
-          aria-label={`Increase ${product.name} quantity`}
-        >
-          +
-        </Button>
-      </div>
+                              <span>
+                                {cart.find((item) => item.product.id === product.id)?.quantity} in cart
+                              </span>
 
-      <Button
-        className="add-button"
-        onClick={() => {
-          setCartOpen(true)
-          setCheckoutOpen(false)
-        }}
-      >
-        Go to Cart
-      </Button>
-    </div>
-  ) : (
-    <Button
-      className="add-button"
-      onClick={() => addToCart(product)}
-      aria-label={`Add ${product.name} to cart`}
-    >
-      + Add to Cart
-    </Button>
-  )}
+                              <Button
+                                onClick={() => changeQuantity(product.id, 1)}
+                                aria-label={`Increase ${product.name} quantity`}
+                              >
+                                +
+                              </Button>
+                            </div>
 
-</div>
+                            <Button
+                              className="add-button"
+                              onClick={() => {
+                                setCartOpen(true)
+                                setCheckoutOpen(false)
+                              }}
+                            >
+                              Go to Cart
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            className="add-button"
+                            onClick={() => addToCart(product)}
+                            aria-label={`Add ${product.name} to cart`}
+                          >
+                            + Add to Cart
+                          </Button>
+                        )}
+                      </div>
                     </Card.Body>
                   </Card>
                 </Col>
@@ -388,66 +430,66 @@ useEffect(() => {
 
         {cartOpen && (
           <section
-  id="shopping-cart"
-  className="cart-section"
-  aria-label="Shopping cart"
->
+            id="shopping-cart"
+            className="cart-section"
+            aria-label="Shopping cart"
+          >
             <Container>
               <div className="cart-panel">
                 {orderConfirmed ? (
-  <div className="order-confirmation">
-    <div className="confirmation-icon">✓</div>
+                  <div className="order-confirmation">
+                    <div className="confirmation-icon">✓</div>
 
-    <span className="eyebrow">CHECKOUT COMPLETE</span>
+                    <span className="eyebrow">CHECKOUT COMPLETE</span>
 
-    <h2>Thank you, {customer.name}!</h2>
+                    <h2>Thank you, {customer.name}!</h2>
 
-    <p>
-      Your checkout demonstration has been completed.
-    </p>
+                    <p>
+                      Your checkout demonstration has been completed.
+                    </p>
 
-    <p className="confirmation-notice">
-      This is a frontend demonstration. No real order has
-      been placed or saved.
-    </p>
+                    <p className="confirmation-notice">
+                      This is a frontend demonstration. No real order has
+                      been placed or saved.
+                    </p>
 
-    <h3>Order Summary</h3>
+                    <h3>Order Summary</h3>
 
-    {cart.map((item) => (
-      <div className="checkout-summary-item" key={item.product.id}>
-        <span>
-          {item.product.name} × {item.quantity}
-        </span>
-        <strong>
-          ${(item.product.price * item.quantity).toFixed(2)}
-        </strong>
-      </div>
-    ))}
+                    {cart.map((item) => (
+                      <div className="checkout-summary-item" key={item.product.id}>
+                        <span>
+                          {item.product.name} × {item.quantity}
+                        </span>
+                        <strong>
+                          {formatPrice(item.product.price * item.quantity)}
+                        </strong>
+                      </div>
+                    ))}
 
-    <div className="checkout-summary-total">
-      <span>Order Total</span>
-      <strong>${cartTotal.toFixed(2)}</strong>
-    </div>
+                    <div className="checkout-summary-total">
+                      <span>Order Total</span>
+                      <strong>{formatPrice(cartTotal)}</strong>
+                    </div>
 
-    <Button
-  className="primary-button"
-  onClick={() => {
-    setOrderConfirmed(false)
-    setCheckoutOpen(false)
-    setCartOpen(false)
-    setCart([])
-    setCustomer({
-      name: '',
-      email: '',
-      phone: '',
-      address: '',
-    })
-  }}
->
-  Return to Storefront
-</Button>
-  </div>
-) : checkoutOpen ? (
+                    <Button
+                      className="primary-button"
+                      onClick={() => {
+                        setOrderConfirmed(false)
+                        setCheckoutOpen(false)
+                        setCartOpen(false)
+                        setCart([])
+                        setCustomer({
+                          name: '',
+                          email: '',
+                          phone: '',
+                          address: '',
+                        })
+                      }}
+                    >
+                      Return to Storefront
+                    </Button>
+                  </div>
+                ) : checkoutOpen ? (
                   <div className="checkout-form">
                     <div className="cart-heading">
                       <div>
@@ -464,31 +506,31 @@ useEffect(() => {
                     </div>
 
                     <p>
-  Please enter your details to continue with your order.
-</p>
+                      Please enter your details to continue with your order.
+                    </p>
 
-<div className="checkout-order-summary">
-  <h3>Order Summary</h3>
+                    <div className="checkout-order-summary">
+                      <h3>Order Summary</h3>
 
-  {cart.map((item) => (
-    <div className="checkout-summary-item" key={item.product.id}>
-      <span>
-        {item.product.name} × {item.quantity}
-      </span>
+                      {cart.map((item) => (
+                        <div className="checkout-summary-item" key={item.product.id}>
+                          <span>
+                            {item.product.name} × {item.quantity}
+                          </span>
 
-      <strong>
-        ${(item.product.price * item.quantity).toFixed(2)}
-      </strong>
-    </div>
-  ))}
+                          <strong>
+                            {formatPrice(item.product.price * item.quantity)}
+                          </strong>
+                        </div>
+                      ))}
 
-  <div className="checkout-summary-total">
-    <span>Subtotal</span>
-    <strong>${cartTotal.toFixed(2)}</strong>
-  </div>
-</div>
+                      <div className="checkout-summary-total">
+                        <span>Subtotal</span>
+                        <strong>{formatPrice(cartTotal)}</strong>
+                      </div>
+                    </div>
 
-<Form onSubmit={handleCheckout}>
+                    <Form onSubmit={handleCheckout}>
                       <Form.Group className="mb-3">
                         <Form.Label>Full Name</Form.Label>
                         <Form.Control
@@ -556,7 +598,7 @@ useEffect(() => {
 
                       <div className="cart-total">
                         <span>Order Total</span>
-                        <strong>${cartTotal.toFixed(2)}</strong>
+                        <strong>{formatPrice(cartTotal)}</strong>
                       </div>
 
                       <Button type="submit" className="primary-button">
@@ -603,7 +645,7 @@ useEffect(() => {
                             <div className="cart-item-details">
                               <strong>{item.product.name}</strong>
                               <span>
-                                ${item.product.price.toFixed(2)} each
+                                {formatPrice(item.product.price)} each
                               </span>
                             </div>
 
@@ -632,15 +674,14 @@ useEffect(() => {
                             </div>
 
                             <strong className="cart-item-total">
-                              $
-                              {(item.product.price * item.quantity).toFixed(2)}
-                            </strong>
+  {formatPrice(item.product.price * item.quantity)}
+</strong>
                           </div>
                         ))}
 
                         <div className="cart-total">
                           <span>Subtotal</span>
-                          <strong>${cartTotal.toFixed(2)}</strong>
+                          <strong>{formatPrice(cartTotal)}</strong>
                         </div>
 
                         <p className="cart-note">
