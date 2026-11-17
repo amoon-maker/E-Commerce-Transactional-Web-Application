@@ -127,7 +127,7 @@ useEffect(() => {
 
       return matchesCategory && matchesSearch
     })
-  }, [selectedCategory, searchTerm])
+  }, [products, selectedCategory, searchTerm])
 
   const cartCount = cart.reduce(
     (total, item) => total + item.quantity,
@@ -323,11 +323,11 @@ useEffect(() => {
     <div className="product-actions">
       <div className="product-quantity-controls">
         <Button
-          onClick={() => changeQuantity(product.id, -1)}
-          aria-label={`Decrease ${product.name} quantity`}
-        >
-          −
-        </Button>
+  onClick={() => changeQuantity(product.id, -1)}
+  aria-label={`Decrease ${product.name} quantity`}
+>
+  −
+</Button>
 
         <span>
           {cart.find((item) => item.product.id === product.id)?.quantity} in cart
