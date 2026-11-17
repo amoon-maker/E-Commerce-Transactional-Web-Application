@@ -319,25 +319,36 @@ useEffect(() => {
   <span className="product-price">
     ${product.price.toFixed(2)}
   </span>
-
   {cart.find((item) => item.product.id === product.id) ? (
-    <div className="product-quantity-controls">
-      <Button
-        onClick={() => changeQuantity(product.id, -1)}
-        aria-label={`Decrease ${product.name} quantity`}
-      >
-        −
-      </Button>
+    <div className="product-actions">
+      <div className="product-quantity-controls">
+        <Button
+          onClick={() => changeQuantity(product.id, -1)}
+          aria-label={`Decrease ${product.name} quantity`}
+        >
+          −
+        </Button>
 
-      <span>
-        {cart.find((item) => item.product.id === product.id)?.quantity} in cart
-      </span>
+        <span>
+          {cart.find((item) => item.product.id === product.id)?.quantity} in cart
+        </span>
+
+        <Button
+          onClick={() => changeQuantity(product.id, 1)}
+          aria-label={`Increase ${product.name} quantity`}
+        >
+          +
+        </Button>
+      </div>
 
       <Button
-        onClick={() => changeQuantity(product.id, 1)}
-        aria-label={`Increase ${product.name} quantity`}
+        className="add-button"
+        onClick={() => {
+          setCartOpen(true)
+          setCheckoutOpen(false)
+        }}
       >
-        +
+        Go to Cart
       </Button>
     </div>
   ) : (
@@ -346,9 +357,10 @@ useEffect(() => {
       onClick={() => addToCart(product)}
       aria-label={`Add ${product.name} to cart`}
     >
-      + Add
+      + Add to Cart
     </Button>
   )}
+
 </div>
                     </Card.Body>
                   </Card>

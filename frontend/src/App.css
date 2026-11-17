@@ -750,3 +750,18 @@
 .storefront.dark-mode .store-footer {
   background: #303a30;
 }
+
+.product-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.product-actions .product-quantity-controls {
+  width: 100%;
+}
+
+.product-actions .add-button {
+  width: 100%;
+}
