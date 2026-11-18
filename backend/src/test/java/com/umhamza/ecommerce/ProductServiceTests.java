@@ -6,6 +6,7 @@ import com.umhamza.ecommerce.dto.ProductResponse;
 import com.umhamza.ecommerce.entity.Product;
 import com.umhamza.ecommerce.entity.Vendor;
 import com.umhamza.ecommerce.repository.ProductRepository;
+import com.umhamza.ecommerce.repository.ProductVariantRepository;
 import com.umhamza.ecommerce.repository.VendorRepository;
 import com.umhamza.ecommerce.service.ProductService;
 
@@ -17,6 +18,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -27,14 +29,21 @@ class ProductServiceTests {
 
     private ProductRepository productRepository;
     private VendorRepository vendorRepository;
+    private ProductVariantRepository productVariantRepository;
     private ProductService productService;
 
     @BeforeEach
     void setUp() {
+
         productRepository = mock(ProductRepository.class);
         vendorRepository = mock(VendorRepository.class);
+        productVariantRepository = mock(ProductVariantRepository.class);
 
-        productService = new ProductService(productRepository, vendorRepository);
+        productService = new ProductService(
+                productRepository,
+                vendorRepository,
+                productVariantRepository
+        );
     }
 
     private ProductRequest validRequest(
@@ -54,28 +63,36 @@ class ProductServiceTests {
                 "g",
                 stockQuantity,
                 3,
-                true
+                true,
+                List.of()
         );
     }
 
     private Vendor vendor() {
+
         Vendor vendor = new Vendor();
         vendor.setBusinessName("Test Vendor");
+
         return vendor;
     }
 
     @Test
     void createProductShouldSaveValidProduct() {
+
         Vendor vendor = vendor();
 
         when(productRepository.existsBySkuIgnoreCase("TEST-001"))
                 .thenReturn(false);
+
         when(vendorRepository.findById(1L))
                 .thenReturn(Optional.of(vendor));
+
         when(productRepository.save(any(Product.class)))
                 .thenAnswer(invocation -> {
+
                     Product product = invocation.getArgument(0);
                     product.setProductId(10L);
+
                     return product;
                 });
 
@@ -93,12 +110,15 @@ class ProductServiceTests {
         assertEquals("Test Product", response.productName());
         assertEquals(12, response.stockQuantity());
         assertEquals("IN_STOCK", response.status());
+        assertNotNull(response.variants());
+        assertTrue(response.variants().isEmpty());
 
         verify(productRepository).save(any(Product.class));
     }
 
     @Test
     void createProductShouldRejectDuplicateSku() {
+
         when(productRepository.existsBySkuIgnoreCase("TEST-001"))
                 .thenReturn(true);
 
@@ -125,8 +145,10 @@ class ProductServiceTests {
 
     @Test
     void createProductShouldRejectSalePriceAboveRegularPrice() {
+
         when(productRepository.existsBySkuIgnoreCase("TEST-002"))
                 .thenReturn(false);
+
         when(vendorRepository.findById(1L))
                 .thenReturn(Optional.of(vendor()));
 
@@ -152,8 +174,10 @@ class ProductServiceTests {
 
     @Test
     void createProductShouldRejectMissingVendor() {
+
         when(productRepository.existsBySkuIgnoreCase("TEST-003"))
                 .thenReturn(false);
+
         when(vendorRepository.findById(1L))
                 .thenReturn(Optional.empty());
 
@@ -174,16 +198,21 @@ class ProductServiceTests {
 
     @Test
     void createProductWithZeroStockShouldBeOutOfStock() {
+
         Vendor vendor = vendor();
 
         when(productRepository.existsBySkuIgnoreCase("TEST-004"))
                 .thenReturn(false);
+
         when(vendorRepository.findById(1L))
                 .thenReturn(Optional.of(vendor));
+
         when(productRepository.save(any(Product.class)))
                 .thenAnswer(invocation -> {
+
                     Product product = invocation.getArgument(0);
                     product.setProductId(11L);
+
                     return product;
                 });
 

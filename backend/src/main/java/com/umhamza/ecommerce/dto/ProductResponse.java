@@ -1,9 +1,12 @@
+
 package com.umhamza.ecommerce.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record ProductResponse(
+
         Long productId,
         Long vendorId,
         String sku,
@@ -20,6 +23,8 @@ public record ProductResponse(
         boolean active,
         long versionNo,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        List<ProductVariantResponse> variants
+
 ) {
 }
