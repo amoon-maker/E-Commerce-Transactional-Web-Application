@@ -96,7 +96,9 @@ const [loggedInUser, setLoggedInUser] = useState<{
   roles: string[]
 } | null>(null)
 
-  const [customer, setCustomer] = useState({
+const [authModalOpen, setAuthModalOpen] = useState(false)
+  
+const [customer, setCustomer] = useState({
     name: '',
     email: '',
     phone: '',
@@ -329,28 +331,63 @@ async function handleLogout() {
               {darkMode ? '☀' : '☾'}
             </Button>
 
-            <Button
-              className="cart-button"
-              onClick={() => {
-                setCartOpen(!cartOpen)
-                setCheckoutOpen(false)
-              }}
-              aria-expanded={cartOpen}
-            >
-              Cart <Badge bg="light" text="dark">{cartCount}</Badge>
-            </Button>
+            <div className="navbar-actions">
+  {!loggedInUser ? (
+    <Button
+      className="login-button"
+      onClick={() => setAuthModalOpen(true)}
+    >
+      Login / Register
+    </Button>
+  ) : (
+    <Button
+      className="login-button"
+      onClick={handleLogout}
+    >
+      Logout
+    </Button>
+  )}
+
+  <Button
+    className="cart-button"
+    onClick={() => {
+      setCartOpen(!cartOpen)
+      setCheckoutOpen(false)
+    }}
+    aria-expanded={cartOpen}
+  >
+    Cart <Badge bg="light" text="dark">{cartCount}</Badge>
+  </Button>
+</div>
           </Navbar.Collapse>
         </Container>
             </Navbar>
+{authModalOpen && (
+  <div
+    className="auth-modal-backdrop"
+    onClick={() => setAuthModalOpen(false)}
+  >
+    <div
+      className="auth-modal"
+      onClick={(event) => event.stopPropagation()}
+    >
+      <button
+        className="auth-modal-close"
+        onClick={() => setAuthModalOpen(false)}
+        aria-label="Close login modal"
+      >
+        ×
+      </button>
 
-      {!loggedInUser && (
-        <section className="auth-section">
-          <Container>
-            <Auth onLogin={setLoggedInUser} />
-          </Container>
-        </section>
-      )}
-
+      <Auth
+        onLogin={(user) => {
+          setLoggedInUser(user)
+          setAuthModalOpen(false)
+        }}
+      />
+    </div>
+  </div>
+)}
       {loggedInUser && (
   <Container className="py-3">
     <div className="alert alert-success mb-0 d-flex justify-content-between align-items-center">
