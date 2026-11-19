@@ -1,5 +1,7 @@
 package com.umhamza.ecommerce.entity;
 
+import jakarta.persistence.PrePersist;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -36,21 +38,15 @@ public class OrderItem {
     @Column(name = "unit_price", nullable = false, precision = 12, scale = 2)
     private BigDecimal unitPrice;
 
-    @Column(
-            name = "line_total",
-            precision = 12,
-            scale = 2,
-            insertable = false,
-            updatable = false
-    )
+    @Column(name = "line_total", precision = 12, scale = 2, insertable = false, updatable = false)
     private BigDecimal lineTotal;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     public OrderItem() {
-    // Required by JPA.
-}
+        // Required by JPA.
+    }
 
     public Long getOrderItemId() {
         return orderItemId;
@@ -94,5 +90,12 @@ public class OrderItem {
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
     }
 }
