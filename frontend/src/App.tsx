@@ -14,13 +14,15 @@ import {
 
 import logo from './assets/umhamzalogo.png'
 import cheeseImage from './assets/products/Cheese Thyme.png'
-import labanaImage from './assets/products/Labana Shatta.png'
-import sumacImage from './assets/products/Sumac Baladi.png'
 import zatarImage from './assets/products/Zatar Baladi.png'
-import molasseImage from './assets/products/Zatar Pomegranate Molasse.png'
+import apricotJamImage from './assets/products/ApricotJam.png'
+import mixedPicklesImage from './assets/products/MixedPickles.png'
+import familyQuantityImage from './assets/products/FamilyQuantityOffer.png'
+import frozenSambousekImage from './assets/products/Frozen Sambousek.png'
 import groupImage from './assets/groupummhamza.png'
 
 import './App.css'
+import Auth from './Auth'
 
 type Category =
   | 'All Products'
@@ -35,6 +37,7 @@ type Product = {
   description: string
   price: number
   image: string
+  stockQuantity: number
 }
 
 type BackendProduct = {
@@ -45,8 +48,20 @@ type BackendProduct = {
   description: string | null
   price: number
   salePrice: number | null
+  packageSize: number
+  packageUnit: string | null
   active: boolean
   stockQuantity: number
+  status: string
+  variants: {
+    variantId: number
+    sku: string
+    variantName: string
+    price: number
+    salePrice: number | null
+    stockQuantity: number
+    active: boolean
+  }[]
 }
 
 type CartItem = {
@@ -63,19 +78,31 @@ const formatPrice = (amount: number) => {
 
 function App() {
   const [selectedCategory, setSelectedCategory] =
-    useState<Category>('All Products')
-  const [searchTerm, setSearchTerm] = useState('')
-  const [cart, setCart] = useState<CartItem[]>([])
+  useState<Category>('All Products')
+const [searchTerm, setSearchTerm] = useState('')
+
+const [products, setProducts] = useState<Product[]>([])
+const [productsLoading, setProductsLoading] = useState(true)
+const [productsError, setProductsError] = useState('')
+
+const [cart, setCart] = useState<CartItem[]>([])
   const [cartOpen, setCartOpen] = useState(false)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const [orderConfirmed, setOrderConfirmed] = useState(false)
   const [darkMode, setDarkMode] = useState(false)
+
+const [loggedInUser, setLoggedInUser] = useState<{
+  email: string
+  roles: string[]
+} | null>(null)
+
   const [customer, setCustomer] = useState({
     name: '',
     email: '',
     phone: '',
     address: '',
   })
+  
 
   // Scroll to cart when it opens
   useEffect(() => {
@@ -88,66 +115,83 @@ function App() {
   }, [cartOpen])
 
   // Load products from backend
-  useEffect(() => {
-    fetch('http://localhost:8080/api/products')
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error('Failed to load products')
-        }
+useEffect(() => {
+  fetch('http://localhost:8080/api/products')
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error('Failed to load products')
+      }
 
-        return response.json()
-      })
-      .then((data: BackendProduct[]) => {
-        const activeProducts = data.filter((product) => product.active)
-        console.log('Backend products:', activeProducts)
-      })
-      .catch((error) => {
-        console.error('Error loading products:', error)
-      })
-  }, [])
+      return response.json()
+    })
+    .then((data: BackendProduct[]) => {
+      const activeProducts = data.filter(
+        (product) =>
+          product.active &&
+          product.stockQuantity > 0 &&
+          product.sku !== 'VENDOR-AUTH-TEST-20261117',
+      )
+const mappedProducts: Product[] = activeProducts.map((product) => {
+  let category: Exclude<Category, 'All Products'> = 'Traditional Pantry'
+  let image = familyQuantityImage
+  let description = 'Discover traditional flavours from Um Hamza.'
 
-  const products: Product[] = [
-    {
-      id: 1,
-      name: 'Cheese Thyme',
-      category: 'Dairy & Cheese',
-      description: 'A traditional cheese and thyme combination.',
-      price: 8.99,
-      image: cheeseImage,
-    },
-    {
-      id: 2,
-      name: 'Labana Shatta',
-      category: 'Dairy & Cheese',
-      description: 'A traditional labneh product with a spicy twist.',
-      price: 7.99,
-      image: labanaImage,
-    },
-    {
-      id: 3,
-      name: 'Sumac Baladi',
-      category: 'Herbs & Spices',
-      description: 'A traditional pantry essential with a tangy flavour.',
-      price: 5.99,
-      image: sumacImage,
-    },
-    {
-      id: 4,
-      name: 'Zatar Baladi',
-      category: 'Herbs & Spices',
-      description: 'A classic Middle Eastern seasoning.',
-      price: 6.49,
-      image: zatarImage,
-    },
-    {
-      id: 5,
-      name: 'Zatar Pomegranate Molasse',
-      category: 'Traditional Pantry',
-      description: 'A distinctive combination inspired by traditional flavours.',
-      price: 7.49,
-      image: molasseImage,
-    },
-  ]
+  switch (product.sku) {
+    case 'UH-CHS-500':
+      category = 'Dairy & Cheese'
+      image = cheeseImage
+      description = 'Traditional Akkawi cheese, packed in a convenient 500g size.'
+      break
+
+    case 'UH-PKL-1000':
+      image = mixedPicklesImage
+      description = 'A traditional mix of pickled vegetables, packed in a 1kg jar.'
+      break
+
+    case 'UH-ZTR-250':
+      category = 'Herbs & Spices'
+      image = zatarImage
+      description = 'A classic zaatar blend, bringing traditional flavour to your table.'
+      break
+
+    case 'UH-JAM-400':
+      image = apricotJamImage
+      description = 'Enjoy the fruity sweetness of apricot jam, packed in a 400g jar.'
+      break
+
+    case 'UH-SMB-500':
+      image = frozenSambousekImage
+      description = 'Traditional frozen cheese sambousek, ready to prepare and enjoy.'
+      break
+
+    case 'UH-OFR-001':
+      image = familyQuantityImage
+      description = 'A convenient family-sized offer for sharing and enjoying together.'
+      break
+  }
+
+  return {
+    id: product.productId,
+    name: product.productName,
+    category,
+    description,
+    price: product.salePrice ?? product.price,
+    image,
+    stockQuantity: product.stockQuantity,
+  }
+})
+
+      setProducts(mappedProducts)
+      setProductsError('')
+    })
+    .catch((error) => {
+      console.error('Error loading products:', error)
+      setProductsError('Unable to load products. Please try again later.')
+    })
+    .finally(() => {
+      setProductsLoading(false)
+    })
+}, [])
 
   const categories: Category[] = [
     'All Products',
@@ -179,41 +223,82 @@ function App() {
     0,
   )
 
-  function addToCart(product: Product) {
-    setCart((currentCart) => {
-      const existingItem = currentCart.find(
-        (item) => item.product.id === product.id,
-      )
+ function addToCart(product: Product) {
+  setCart((currentCart) => {
+    const existingItem = currentCart.find(
+      (item) => item.product.id === product.id,
+    )
 
-      if (existingItem) {
-        return currentCart.map((item) =>
-          item.product.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item,
-        )
+    if (existingItem) {
+      if (existingItem.quantity >= product.stockQuantity) {
+        return currentCart
       }
 
-      return [...currentCart, { product, quantity: 1 }]
-    })
-  }
+      return currentCart.map((item) =>
+        item.product.id === product.id
+          ? { ...item, quantity: item.quantity + 1 }
+          : item,
+      )
+    }
+
+    if (product.stockQuantity < 1) {
+      return currentCart
+    }
+
+    return [...currentCart, { product, quantity: 1 }]
+  })
+}
 
   function changeQuantity(productId: number, change: number) {
-    setCart((currentCart) =>
-      currentCart
-        .map((item) =>
-          item.product.id === productId
-            ? { ...item, quantity: item.quantity + change }
-            : item,
-        )
-        .filter((item) => item.quantity > 0),
-    )
-  }
+  setCart((currentCart) =>
+    currentCart
+      .map((item) => {
+        if (item.product.id !== productId) {
+          return item
+        }
+
+        const newQuantity = item.quantity + change
+
+        if (newQuantity > item.product.stockQuantity) {
+          return item
+        }
+
+        return { ...item, quantity: newQuantity }
+      })
+      .filter((item) => item.quantity > 0),
+  )
+}
 
   function handleCheckout(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setOrderConfirmed(true)
   }
+async function handleLogout() {
+  try {
+    const csrfResponse = await fetch('http://localhost:8080/api/auth/csrf', {
+      credentials: 'include',
+    })
 
+    const csrfData = await csrfResponse.json()
+
+    const csrfToken = document.cookie
+      .split('; ')
+      .find((cookie) => cookie.startsWith('XSRF-TOKEN='))
+      ?.split('=')[1]
+
+    await fetch('http://localhost:8080/api/auth/logout', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        [csrfData.headerName]: decodeURIComponent(csrfToken || csrfData.token),
+      },
+    })
+
+    setLoggedInUser(null)
+  } catch (error) {
+    console.error('Logout error:', error)
+  }
+}
   return (
     <div className={`storefront ${darkMode ? 'dark-mode' : ''}`}>
       <div className="announcement-bar">
@@ -256,7 +341,36 @@ function App() {
             </Button>
           </Navbar.Collapse>
         </Container>
-      </Navbar>
+            </Navbar>
+
+      {!loggedInUser && (
+        <section className="auth-section">
+          <Container>
+            <Auth onLogin={setLoggedInUser} />
+          </Container>
+        </section>
+      )}
+
+      {loggedInUser && (
+  <Container className="py-3">
+    <div className="alert alert-success mb-0 d-flex justify-content-between align-items-center">
+      <div>
+        Welcome, <strong>{loggedInUser.email}</strong>!
+        <br />
+        <small>
+          Role: {loggedInUser.roles.join(', ')}
+        </small>
+      </div>
+
+      <Button
+        variant="outline-success"
+        onClick={handleLogout}
+      >
+        Logout
+      </Button>
+    </div>
+  </Container>
+)}
 
       <main>
         <section id="home" className="hero-section">
@@ -335,6 +449,13 @@ function App() {
                 onChange={(event) => setSearchTerm(event.target.value)}
               />
             </div>
+{productsLoading && (
+  <p className="text-center">Loading products...</p>
+)}
+
+{productsError && (
+  <p className="text-center text-danger">{productsError}</p>
+)}
 
             <Row className="g-4">
               {filteredProducts.map((product) => (
@@ -356,6 +477,12 @@ function App() {
 
                       <Card.Title>{product.name}</Card.Title>
                       <Card.Text>{product.description}</Card.Text>
+
+                      <p className="product-stock">
+  {product.stockQuantity <= 5
+    ? `Only ${product.stockQuantity} left in stock`
+    : 'In Stock'}
+</p>
 
                       <div className="product-card-footer mt-auto">
                         <span className="product-price">
