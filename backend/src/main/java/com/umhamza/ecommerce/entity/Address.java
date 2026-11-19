@@ -60,9 +60,9 @@ public class Address {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    protected Address() {
-        // Required by JPA.
-    }
+    public Address() {
+    // Required by JPA.
+}
 
     @PrePersist
     protected void onCreate() {

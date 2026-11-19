@@ -48,9 +48,9 @@ public class OrderItem {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    protected OrderItem() {
-        // Required by JPA.
-    }
+    public OrderItem() {
+    // Required by JPA.
+}
 
     public Long getOrderItemId() {
         return orderItemId;

@@ -62,9 +62,9 @@ public class Order {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    protected Order() {
-        // Required by JPA.
-    }
+    public Order() {
+    // Required by JPA.
+}
 
     @PrePersist
     protected void onCreate() {
