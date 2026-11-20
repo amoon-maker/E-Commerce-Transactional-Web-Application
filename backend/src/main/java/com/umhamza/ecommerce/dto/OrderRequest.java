@@ -13,7 +13,10 @@ public record OrderRequest(
         AddressRequest deliveryAddress,
 
         @NotEmpty(message = "An order must contain at least one item")
-        List<@Valid OrderItemRequest> items
+        List<@Valid OrderItemRequest> items,
+
+        @NotNull(message = "Payment method is required")
+        String paymentMethod
 
 ) {
 }

@@ -18,15 +18,16 @@ public class PaymentServiceSelector {
 
     public BankService getPaymentService(String paymentMethod) {
 
-        if (paymentMethod == null) {
+        if (paymentMethod == null || paymentMethod.isBlank()) {
             throw new IllegalArgumentException(
-                    "Payment method cannot be null."
+                    "Payment method cannot be null or empty."
             );
         }
 
         return switch (paymentMethod.trim().toUpperCase()) {
             case "DEBIT" -> debitPayment;
             case "CREDIT" -> creditPayment;
+
             default -> throw new IllegalArgumentException(
                     "Unsupported payment method: " + paymentMethod
             );
