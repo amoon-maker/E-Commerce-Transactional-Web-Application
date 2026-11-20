@@ -16,7 +16,9 @@ import familyQuantityImage from "./assets/products/FamilyQuantityOffer.png";
 import apricotJamImage from "./assets/products/ApricotJam.png";
 import cheeseNabulsiImage from "./assets/products/cheese nabulsi.png";
 import frozenSambousekImage from "./assets/products/Frozen Sambousek.png";
+import greenOlivesImage from "./assets/products/Green Olives.png";
 import labanaShattaImage from "./assets/products/Labana Shatta.png";
+import mintImage from "./assets/products/Mint.png";
 import mixedAcharImage from "./assets/products/Mixed Achar.png";
 import sumacBaladiImage from "./assets/products/Sumac Baladi.png";
 import walnutSaladImage from "./assets/products/WalnutSalad.png";
@@ -253,6 +255,8 @@ const productImagesBySku: Record<string, string> = {
   "UH-PKL-1000": mixedAcharImage,
   "UH-SMB-500": frozenSambousekImage,
   "UH-ZTR-250": zatarBaladiImage,
+  "LP-OLV-500": greenOlivesImage,
+  "LP-MNT-100": mintImage,
   "UH-LBS-500": labanaShattaImage,
   "UH-SUM-500": sumacBaladiImage,
   "UH-WAL-500": walnutSaladImage,
