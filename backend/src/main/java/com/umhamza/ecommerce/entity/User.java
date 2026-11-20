@@ -51,6 +51,12 @@ public class User {
         // Required by JPA.
     }
 
+public User(String email, String passwordHash, Role role) {
+    this.email = email;
+    this.passwordHash = passwordHash;
+    this.role = role;
+}
+
     @PrePersist
     protected void onCreate() {
         LocalDateTime now = LocalDateTime.now();

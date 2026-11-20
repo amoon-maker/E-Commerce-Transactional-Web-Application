@@ -6,6 +6,8 @@ import com.umhamza.ecommerce.dto.ProductResponse;
 import com.umhamza.ecommerce.entity.Product;
 import com.umhamza.ecommerce.entity.Vendor;
 import com.umhamza.ecommerce.repository.ProductRepository;
+import com.umhamza.ecommerce.repository.ProductVariantRepository;
+import com.umhamza.ecommerce.repository.UserRepository;
 import com.umhamza.ecommerce.repository.VendorRepository;
 import com.umhamza.ecommerce.service.ProductService;
 
@@ -14,9 +16,13 @@ import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -27,16 +33,23 @@ class ProductServiceTests {
 
     private ProductRepository productRepository;
     private VendorRepository vendorRepository;
+    private ProductVariantRepository productVariantRepository;
+    private UserRepository userRepository;
     private ProductService productService;
 
     @BeforeEach
     void setUp() {
+
         productRepository = mock(ProductRepository.class);
         vendorRepository = mock(VendorRepository.class);
+        productVariantRepository = mock(ProductVariantRepository.class);
+        userRepository = mock(UserRepository.class);
 
         productService = new ProductService(
                 productRepository,
-                vendorRepository
+                vendorRepository,
+                productVariantRepository,
+                userRepository
         );
     }
 
@@ -57,28 +70,44 @@ class ProductServiceTests {
                 "g",
                 stockQuantity,
                 3,
-                true
+                true,
+                List.of()
         );
     }
 
     private Vendor vendor() {
+
         Vendor vendor = new Vendor();
         vendor.setBusinessName("Test Vendor");
+
         return vendor;
+    }
+
+    private Authentication adminAuthentication() {
+        return new UsernamePasswordAuthenticationToken(
+                "admin@example.com",
+                "n/a",
+                List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))
+        );
     }
 
     @Test
     void createProductShouldSaveValidProduct() {
+
         Vendor vendor = vendor();
 
         when(productRepository.existsBySkuIgnoreCase("TEST-001"))
                 .thenReturn(false);
+
         when(vendorRepository.findById(1L))
                 .thenReturn(Optional.of(vendor));
+
         when(productRepository.save(any(Product.class)))
                 .thenAnswer(invocation -> {
+
                     Product product = invocation.getArgument(0);
                     product.setProductId(10L);
+
                     return product;
                 });
 
@@ -88,7 +117,8 @@ class ProductServiceTests {
                         new BigDecimal("10.00"),
                         new BigDecimal("9.00"),
                         12
-                )
+                ),
+                adminAuthentication()
         );
 
         assertEquals(10L, response.productId());
@@ -96,12 +126,15 @@ class ProductServiceTests {
         assertEquals("Test Product", response.productName());
         assertEquals(12, response.stockQuantity());
         assertEquals("IN_STOCK", response.status());
+        assertNotNull(response.variants());
+        assertTrue(response.variants().isEmpty());
 
         verify(productRepository).save(any(Product.class));
     }
 
     @Test
     void createProductShouldRejectDuplicateSku() {
+
         when(productRepository.existsBySkuIgnoreCase("TEST-001"))
                 .thenReturn(true);
 
@@ -113,7 +146,8 @@ class ProductServiceTests {
                                 new BigDecimal("10.00"),
                                 null,
                                 5
-                        )
+                        ),
+                        adminAuthentication()
                 )
         );
 
@@ -128,8 +162,10 @@ class ProductServiceTests {
 
     @Test
     void createProductShouldRejectSalePriceAboveRegularPrice() {
+
         when(productRepository.existsBySkuIgnoreCase("TEST-002"))
                 .thenReturn(false);
+
         when(vendorRepository.findById(1L))
                 .thenReturn(Optional.of(vendor()));
 
@@ -141,7 +177,8 @@ class ProductServiceTests {
                                 new BigDecimal("10.00"),
                                 new BigDecimal("12.00"),
                                 5
-                        )
+                        ),
+                        adminAuthentication()
                 )
         );
 
@@ -155,8 +192,10 @@ class ProductServiceTests {
 
     @Test
     void createProductShouldRejectMissingVendor() {
+
         when(productRepository.existsBySkuIgnoreCase("TEST-003"))
                 .thenReturn(false);
+
         when(vendorRepository.findById(1L))
                 .thenReturn(Optional.empty());
 
@@ -168,7 +207,8 @@ class ProductServiceTests {
                                 new BigDecimal("10.00"),
                                 null,
                                 5
-                        )
+                        ),
+                        adminAuthentication()
                 )
         );
 
@@ -177,16 +217,21 @@ class ProductServiceTests {
 
     @Test
     void createProductWithZeroStockShouldBeOutOfStock() {
+
         Vendor vendor = vendor();
 
         when(productRepository.existsBySkuIgnoreCase("TEST-004"))
                 .thenReturn(false);
+
         when(vendorRepository.findById(1L))
                 .thenReturn(Optional.of(vendor));
+
         when(productRepository.save(any(Product.class)))
                 .thenAnswer(invocation -> {
+
                     Product product = invocation.getArgument(0);
                     product.setProductId(11L);
+
                     return product;
                 });
 
@@ -196,7 +241,8 @@ class ProductServiceTests {
                         new BigDecimal("10.00"),
                         null,
                         0
-                )
+                ),
+                adminAuthentication()
         );
 
         assertEquals(0, response.stockQuantity());

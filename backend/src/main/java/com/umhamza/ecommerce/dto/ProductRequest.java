@@ -1,5 +1,7 @@
+
 package com.umhamza.ecommerce.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Min;
@@ -9,6 +11,7 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public record ProductRequest(
 
@@ -52,6 +55,8 @@ public record ProductRequest(
         @Min(value = 0, message = "Reorder level cannot be negative")
         Integer reorderLevel,
 
-        Boolean active
+        Boolean active,
+
+        List<@Valid ProductVariantRequest> variants
 ) {
 }
