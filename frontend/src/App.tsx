@@ -12,12 +12,10 @@ import {
 } from "react-bootstrap";
 
 import logo from "./assets/umhamzalogo.png";
-import cheeseImage from "./assets/products/Cheese Thyme.png";
-import zatarImage from "./assets/products/Zatar Baladi.png";
-import apricotJamImage from "./assets/products/ApricotJam.png";
-import mixedPicklesImage from "./assets/products/MixedPickles.png";
 import familyQuantityImage from "./assets/products/FamilyQuantityOffer.png";
-import frozenSambousekImage from "./assets/products/Frozen Sambousek.png";
+import labanaShattaImage from "./assets/products/Labana Shatta.png";
+import sumacBaladiImage from "./assets/products/Sumac Baladi.png";
+import walnutSaladImage from "./assets/products/WalnutSalad.png";
 import groupImage from "./assets/groupummhamza.png";
 
 import "./App.css";
@@ -35,7 +33,7 @@ type Product = {
   category: Exclude<Category, "All Products">;
   description: string;
   price: number;
-  image: string;
+  image: string | null;
   stockQuantity: number;
 };
 
@@ -74,6 +72,48 @@ const formatPrice = (amount: number) => {
     currency: "AED",
   }).format(amount);
 };
+
+const productImagesBySku: Record<string, string> = {
+  "UH-LBS-500": labanaShattaImage,
+  "UH-SUM-500": sumacBaladiImage,
+  "UH-WAL-500": walnutSaladImage,
+  "UH-OFR-001": familyQuantityImage,
+};
+
+function ProductImage({
+  image,
+  alt,
+  imageClassName,
+  placeholderClassName,
+}: {
+  image: string | null;
+  alt: string;
+  imageClassName: string;
+  placeholderClassName: string;
+}) {
+  const [imageFailed, setImageFailed] = useState(false);
+
+  if (!image || imageFailed) {
+    return (
+      <div
+        className={placeholderClassName}
+        role="img"
+        aria-label={`${alt}: image unavailable`}
+      >
+        <span>Image unavailable</span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={image}
+      alt={alt}
+      className={imageClassName}
+      onError={() => setImageFailed(true)}
+    />
+  );
+}
 
 function App() {
   const [selectedCategory, setSelectedCategory] =
@@ -154,46 +194,64 @@ function App() {
         const mappedProducts: Product[] = activeProducts.map((product) => {
           let category: Exclude<Category, "All Products"> =
             "Traditional Pantry";
-          let image = familyQuantityImage;
-          let description = "Discover traditional flavours from Um Hamza.";
+          const image = productImagesBySku[product.sku] ?? null;
+          let description =
+            product.description ?? "Product details are unavailable.";
 
           switch (product.sku) {
             case "UH-CHS-500":
               category = "Dairy & Cheese";
-              image = cheeseImage;
               description =
                 "Traditional Akkawi cheese, packed in a convenient 500g size.";
               break;
 
             case "UH-PKL-1000":
-              image = mixedPicklesImage;
               description =
                 "A traditional mix of pickled vegetables, packed in a 1kg jar.";
               break;
 
             case "UH-ZTR-250":
               category = "Herbs & Spices";
-              image = zatarImage;
               description =
                 "A classic zaatar blend, bringing traditional flavour to your table.";
               break;
 
             case "UH-JAM-400":
-              image = apricotJamImage;
               description =
                 "Enjoy the fruity sweetness of apricot jam, packed in a 400g jar.";
               break;
 
             case "UH-SMB-500":
-              image = frozenSambousekImage;
               description =
                 "Traditional frozen cheese sambousek, ready to prepare and enjoy.";
               break;
 
             case "UH-OFR-001":
-              image = familyQuantityImage;
               description =
                 "A convenient family-sized offer for sharing and enjoying together.";
+              break;
+
+            case "UH-LBS-500":
+              category = "Dairy & Cheese";
+              description = "Labana Shatta, 500g.";
+              break;
+
+            case "UH-SUM-500":
+              category = "Herbs & Spices";
+              description = "Sumac Baladi, 500g.";
+              break;
+
+            case "UH-WAL-500":
+              description = "Walnut Salad, 500g.";
+              break;
+
+            case "LP-OLV-500":
+              description = "Green Olives, 500g sample product.";
+              break;
+
+            case "LP-MNT-100":
+              category = "Herbs & Spices";
+              description = "Dried Mint, 100g sample product.";
               break;
           }
 
@@ -599,11 +657,11 @@ const csrfToken = document.cookie
                 <Col key={product.id} xs={12} sm={6} lg={4} xl={3}>
                   <Card className="product-card h-100">
                     <div className="product-image-wrapper">
-                      <Card.Img
-                        variant="top"
-                        src={product.image}
+                      <ProductImage
+                        image={product.image}
                         alt={product.name}
-                        className="product-image"
+                        imageClassName="product-image"
+                        placeholderClassName="product-image-placeholder"
                       />
                     </div>
 
@@ -1044,9 +1102,11 @@ const csrfToken = document.cookie
                       <>
                         {cart.map((item) => (
                           <div className="cart-item" key={item.product.id}>
-                            <img
-                              src={item.product.image}
+                            <ProductImage
+                              image={item.product.image}
                               alt={item.product.name}
+                              imageClassName="cart-item-image"
+                              placeholderClassName="cart-item-image-placeholder"
                             />
 
                             <div className="cart-item-details">
