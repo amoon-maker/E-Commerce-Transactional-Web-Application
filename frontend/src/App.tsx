@@ -315,11 +315,11 @@ function App() {
 
       const csrfData = await csrfResponse.json();
 
-      // Get the CSRF token from the cookie
-      const csrfToken = document.cookie
-        .split("; ")
-        .find((cookie) => cookie.startsWith("XSRF-TOKEN="))
-        ?.split("=")[1];
+     // Get CSRF token from the cookie
+const csrfToken = document.cookie
+  .split("; ")
+  .find((cookie) => cookie.startsWith("XSRF-TOKEN="))
+  ?.substring("XSRF-TOKEN=".length);
 
       // Prepare order request
       const orderRequest = {
@@ -383,9 +383,9 @@ function App() {
       const csrfData = await csrfResponse.json();
 
       const csrfToken = document.cookie
-        .split("; ")
-        .find((cookie) => cookie.startsWith("XSRF-TOKEN="))
-        ?.split("=")[1];
+  .split("; ")
+  .find((cookie) => cookie.startsWith("XSRF-TOKEN="))
+  ?.substring("XSRF-TOKEN=".length);
 
       await fetch("http://localhost:8080/api/auth/logout", {
         method: "POST",

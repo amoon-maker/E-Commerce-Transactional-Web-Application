@@ -1,4 +1,3 @@
-
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
@@ -39,7 +38,21 @@ function Auth({ onLogin }: AuthProps) {
 
       const csrfData = await csrfResponse.json()
 
-      const csrfToken = csrfData.token
+      // Read CSRF token from the XSRF-TOKEN cookie
+      const xsrfCookie = document.cookie
+        .split(';')
+        .map((cookie) => cookie.trim())
+        .find((cookie) => cookie.startsWith('XSRF-TOKEN='))
+
+      const csrfToken = xsrfCookie
+        ? decodeURIComponent(
+            xsrfCookie.substring('XSRF-TOKEN='.length)
+          )
+        : null
+
+      if (!csrfToken) {
+        throw new Error('CSRF token cookie not found.')
+      }
 
       const endpoint = isRegister ? 'register' : 'login'
 
@@ -77,6 +90,7 @@ function Auth({ onLogin }: AuthProps) {
         )
       }
 
+      // Registration successful
       if (isRegister) {
         setIsRegister(false)
         setPassword('')

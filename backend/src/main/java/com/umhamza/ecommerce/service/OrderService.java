@@ -4,15 +4,19 @@ import com.umhamza.ecommerce.dto.AddressRequest;
 import com.umhamza.ecommerce.dto.OrderItemRequest;
 import com.umhamza.ecommerce.dto.OrderRequest;
 import com.umhamza.ecommerce.dto.OrderResponse;
+
 import com.umhamza.ecommerce.entity.Address;
 import com.umhamza.ecommerce.entity.Customer;
 import com.umhamza.ecommerce.entity.Order;
 import com.umhamza.ecommerce.entity.OrderItem;
+import com.umhamza.ecommerce.entity.Payment;
 import com.umhamza.ecommerce.entity.Product;
+
 import com.umhamza.ecommerce.repository.AddressRepository;
 import com.umhamza.ecommerce.repository.CustomerRepository;
 import com.umhamza.ecommerce.repository.OrderItemRepository;
 import com.umhamza.ecommerce.repository.OrderRepository;
+import com.umhamza.ecommerce.repository.PaymentRepository;
 import com.umhamza.ecommerce.repository.ProductRepository;
 
 import org.springframework.stereotype.Service;
@@ -23,6 +27,7 @@ import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 public class OrderService {
@@ -32,18 +37,25 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final ProductRepository productRepository;
+    private final PaymentRepository paymentRepository;
+    private final PaymentServiceSelector paymentServiceSelector;
 
     public OrderService(
             CustomerRepository customerRepository,
             AddressRepository addressRepository,
             OrderRepository orderRepository,
             OrderItemRepository orderItemRepository,
-            ProductRepository productRepository) {
+            ProductRepository productRepository,
+            PaymentRepository paymentRepository,
+            PaymentServiceSelector paymentServiceSelector) {
+
         this.customerRepository = customerRepository;
         this.addressRepository = addressRepository;
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.productRepository = productRepository;
+        this.paymentRepository = paymentRepository;
+        this.paymentServiceSelector = paymentServiceSelector;
     }
 
     @Transactional
@@ -152,6 +164,12 @@ public class OrderService {
 
         BigDecimal totalAmount = subtotal;
 
+        // Validate payment amount
+        if (totalAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException(
+                    "Order total must be greater than zero.");
+        }
+
         order.setSubtotal(subtotal);
         order.setTotalAmount(totalAmount);
 
@@ -161,7 +179,38 @@ public class OrderService {
         // 7. Save order items
         orderItemRepository.saveAll(orderItems);
 
-        // 8. Return response
+        // 8. Process payment
+        String paymentMethod = request.paymentMethod()
+                .trim()
+                .toUpperCase();
+
+        BankService paymentService =
+                paymentServiceSelector.getPaymentService(
+                        paymentMethod);
+
+        String paymentReference =
+                generatePaymentReference(paymentMethod);
+
+        paymentService.processPayment(
+        totalAmount,
+        paymentReference);
+
+        // 9. Create payment record
+        Payment payment = new Payment();
+
+        payment.setOrder(savedOrder);
+        payment.setPaymentMethod(paymentMethod);
+        payment.setStatus("CAPTURED");
+
+        payment.setAuthorizedAmount(totalAmount);
+        payment.setCapturedAmount(totalAmount);
+
+        payment.setCurrencyCode("AED");
+        payment.setProviderTransactionId(paymentReference);
+
+        paymentRepository.save(payment);
+
+        // 10. Return response
         return new OrderResponse(
                 savedOrder.getOrderId(),
                 savedOrder.getOrderNumber(),
@@ -219,5 +268,29 @@ public class OrderService {
                 .toString()
                 .substring(0, 12)
                 .toUpperCase();
+    }
+
+    private String generatePaymentReference(
+            String paymentMethod) {
+
+        if ("CREDIT".equals(paymentMethod)) {
+
+            int number = ThreadLocalRandom.current()
+                    .nextInt(0, 10000);
+
+            return String.format("CREDIT-%04d", number);
+        }
+
+        if ("DEBIT".equals(paymentMethod)) {
+
+            int number = ThreadLocalRandom.current()
+                    .nextInt(0, 1000000);
+
+            return String.format("DEBIT-%06d", number);
+        }
+
+        throw new IllegalArgumentException(
+                "Unsupported payment method: "
+                        + paymentMethod);
     }
 }
