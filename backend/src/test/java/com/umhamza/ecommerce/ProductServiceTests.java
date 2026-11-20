@@ -7,6 +7,7 @@ import com.umhamza.ecommerce.entity.Product;
 import com.umhamza.ecommerce.entity.Vendor;
 import com.umhamza.ecommerce.repository.ProductRepository;
 import com.umhamza.ecommerce.repository.ProductVariantRepository;
+import com.umhamza.ecommerce.repository.UserRepository;
 import com.umhamza.ecommerce.repository.VendorRepository;
 import com.umhamza.ecommerce.service.ProductService;
 
@@ -15,6 +16,9 @@ import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
@@ -30,6 +34,7 @@ class ProductServiceTests {
     private ProductRepository productRepository;
     private VendorRepository vendorRepository;
     private ProductVariantRepository productVariantRepository;
+    private UserRepository userRepository;
     private ProductService productService;
 
     @BeforeEach
@@ -38,11 +43,13 @@ class ProductServiceTests {
         productRepository = mock(ProductRepository.class);
         vendorRepository = mock(VendorRepository.class);
         productVariantRepository = mock(ProductVariantRepository.class);
+        userRepository = mock(UserRepository.class);
 
         productService = new ProductService(
                 productRepository,
                 vendorRepository,
-                productVariantRepository
+                productVariantRepository,
+                userRepository
         );
     }
 
@@ -76,6 +83,14 @@ class ProductServiceTests {
         return vendor;
     }
 
+    private Authentication adminAuthentication() {
+        return new UsernamePasswordAuthenticationToken(
+                "admin@example.com",
+                "n/a",
+                List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))
+        );
+    }
+
     @Test
     void createProductShouldSaveValidProduct() {
 
@@ -102,7 +117,8 @@ class ProductServiceTests {
                         new BigDecimal("10.00"),
                         new BigDecimal("9.00"),
                         12
-                )
+                ),
+                adminAuthentication()
         );
 
         assertEquals(10L, response.productId());
@@ -130,7 +146,8 @@ class ProductServiceTests {
                                 new BigDecimal("10.00"),
                                 null,
                                 5
-                        )
+                        ),
+                        adminAuthentication()
                 )
         );
 
@@ -160,7 +177,8 @@ class ProductServiceTests {
                                 new BigDecimal("10.00"),
                                 new BigDecimal("12.00"),
                                 5
-                        )
+                        ),
+                        adminAuthentication()
                 )
         );
 
@@ -189,7 +207,8 @@ class ProductServiceTests {
                                 new BigDecimal("10.00"),
                                 null,
                                 5
-                        )
+                        ),
+                        adminAuthentication()
                 )
         );
 
@@ -222,7 +241,8 @@ class ProductServiceTests {
                         new BigDecimal("10.00"),
                         null,
                         0
-                )
+                ),
+                adminAuthentication()
         );
 
         assertEquals(0, response.stockQuantity());

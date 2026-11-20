@@ -7,6 +7,7 @@ import com.umhamza.ecommerce.service.ProductService;
 import jakarta.validation.Valid;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -41,10 +42,11 @@ public class ProductController {
 
     @PostMapping
     public ResponseEntity<ProductResponse> createProduct(
-            @Valid @RequestBody ProductRequest request) {
+            @Valid @RequestBody ProductRequest request,
+            Authentication authentication) {
 
         ProductResponse createdProduct =
-                productService.createProduct(request);
+                productService.createProduct(request, authentication);
 
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
@@ -59,18 +61,20 @@ public class ProductController {
     @PutMapping("/{productId}")
 public ResponseEntity<ProductResponse> updateProduct(
         @PathVariable Long productId,
-        @Valid @RequestBody ProductRequest request) {
+        @Valid @RequestBody ProductRequest request,
+        Authentication authentication) {
 
     return ResponseEntity.ok(
-            productService.updateProduct(productId, request)
+            productService.updateProduct(productId, request, authentication)
     );
 }
 
 @DeleteMapping("/{productId}")
 public ResponseEntity<Void> deleteProduct(
-        @PathVariable Long productId) {
+        @PathVariable Long productId,
+        Authentication authentication) {
 
-    productService.deleteProduct(productId);
+    productService.deleteProduct(productId, authentication);
     return ResponseEntity.noContent().build();
 }
 }

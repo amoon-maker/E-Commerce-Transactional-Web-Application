@@ -57,6 +57,9 @@ public class SecurityConfig {
                     "/api/auth/csrf"
                 ).permitAll()
 
+                .requestMatchers("/api/vendors", "/api/vendors/**")
+                .hasRole("ADMIN")
+
                 .requestMatchers(
                     org.springframework.http.HttpMethod.GET,
                     "/api/products",

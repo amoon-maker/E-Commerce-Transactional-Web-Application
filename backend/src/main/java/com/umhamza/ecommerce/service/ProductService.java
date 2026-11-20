@@ -7,14 +7,18 @@ import com.umhamza.ecommerce.dto.ProductVariantRequest;
 import com.umhamza.ecommerce.dto.ProductVariantResponse;
 import com.umhamza.ecommerce.entity.Product;
 import com.umhamza.ecommerce.entity.ProductVariant;
+import com.umhamza.ecommerce.entity.User;
 import com.umhamza.ecommerce.entity.Vendor;
 import com.umhamza.ecommerce.repository.ProductRepository;
 import com.umhamza.ecommerce.repository.ProductVariantRepository;
+import com.umhamza.ecommerce.repository.UserRepository;
 import com.umhamza.ecommerce.repository.VendorRepository;
 
 import jakarta.persistence.EntityNotFoundException;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -28,15 +32,18 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final VendorRepository vendorRepository;
     private final ProductVariantRepository productVariantRepository;
+    private final UserRepository userRepository;
 
     public ProductService(
             ProductRepository productRepository,
             VendorRepository vendorRepository,
-            ProductVariantRepository productVariantRepository) {
+            ProductVariantRepository productVariantRepository,
+            UserRepository userRepository) {
 
         this.productRepository = productRepository;
         this.vendorRepository = vendorRepository;
         this.productVariantRepository = productVariantRepository;
+        this.userRepository = userRepository;
     }
 
 
@@ -63,7 +70,12 @@ public class ProductService {
 
 
     @Transactional
-    public ProductResponse createProduct(ProductRequest request) {
+    public ProductResponse createProduct(
+            ProductRequest request,
+            Authentication authentication) {
+
+        Long actorVendorId = getActorVendorId(authentication);
+        requireVendorAccess(request.vendorId(), actorVendorId);
 
         String sku = request.sku().trim();
 
@@ -134,12 +146,18 @@ public class ProductService {
     @Transactional
     public ProductResponse updateProduct(
             Long productId,
-            ProductRequest request) {
+            ProductRequest request,
+            Authentication authentication) {
+
+        Long actorVendorId = getActorVendorId(authentication);
 
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Product not found with ID: " + productId
                 ));
+
+        requireVendorAccess(product.getVendor().getVendorId(), actorVendorId);
+        requireVendorAccess(request.vendorId(), actorVendorId);
 
         String sku = request.sku().trim();
 
@@ -341,14 +359,68 @@ public class ProductService {
 
 
     @Transactional
-    public void deleteProduct(Long productId) {
+    public void deleteProduct(
+            Long productId,
+            Authentication authentication) {
+
+        Long actorVendorId = getActorVendorId(authentication);
 
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Product not found with ID: " + productId
                 ));
 
+        requireVendorAccess(product.getVendor().getVendorId(), actorVendorId);
+
         productRepository.delete(product);
+    }
+
+    private Long getActorVendorId(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw forbidden("Authentication is required to modify products.");
+        }
+
+        if (hasAuthority(authentication, "ROLE_ADMIN")) {
+            return null;
+        }
+
+        if (!hasAuthority(authentication, "ROLE_VENDOR")) {
+            throw forbidden("Only admins and vendors may modify products.");
+        }
+
+        User user = userRepository.findByEmailIgnoreCase(
+                        authentication.getName())
+                .orElseThrow(() -> forbidden(
+                        "The authenticated vendor account was not found."));
+
+        if (user.getVendor() == null || user.getVendor().getVendorId() == null) {
+            throw forbidden("The vendor account is not linked to a vendor.");
+        }
+
+        return user.getVendor().getVendorId();
+    }
+
+    private boolean hasAuthority(
+            Authentication authentication,
+            String expectedAuthority) {
+
+        return authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch(expectedAuthority::equals);
+    }
+
+    private void requireVendorAccess(
+            Long resourceVendorId,
+            Long actorVendorId) {
+
+        // A null actor vendor ID represents the administrator bypass.
+        if (actorVendorId != null && !actorVendorId.equals(resourceVendorId)) {
+            throw forbidden("You may only modify products belonging to your vendor account.");
+        }
+    }
+
+    private ResponseStatusException forbidden(String message) {
+        return new ResponseStatusException(HttpStatus.FORBIDDEN, message);
     }
 
 
