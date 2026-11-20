@@ -12,6 +12,7 @@ public record OrderResponse(
         BigDecimal taxAmount,
         BigDecimal shippingCost,
         BigDecimal totalAmount,
-        String status
+        String status,
+        String invoiceNumber
 ) {
 }

@@ -9,16 +9,15 @@ import com.umhamza.ecommerce.entity.Product;
 import com.umhamza.ecommerce.entity.Role;
 import com.umhamza.ecommerce.entity.ShoppingCart;
 import com.umhamza.ecommerce.entity.User;
+import com.umhamza.ecommerce.entity.Vendor;
 import com.umhamza.ecommerce.repository.CartItemRepository;
 import com.umhamza.ecommerce.repository.CustomerRepository;
 import com.umhamza.ecommerce.repository.FavoriteRepository;
 import com.umhamza.ecommerce.repository.ProductRepository;
 import com.umhamza.ecommerce.repository.ShoppingCartRepository;
 import com.umhamza.ecommerce.repository.UserRepository;
-import com.umhamza.ecommerce.service.CartService;
 import com.umhamza.ecommerce.service.CartServiceImpl;
 import com.umhamza.ecommerce.service.CustomerAccountService;
-import com.umhamza.ecommerce.service.FavoriteService;
 import com.umhamza.ecommerce.service.FavoriteServiceImpl;
 import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
@@ -305,6 +304,9 @@ class CartFavoriteServiceTests {
         when(product.getStockQuantity()).thenReturn(stock);
         when(product.getReservedQuantity()).thenReturn(reserved);
         when(product.isActive()).thenReturn(active);
+        Vendor vendor = mock(Vendor.class);
+        when(vendor.getVendorId()).thenReturn(17L);
+        when(product.getVendor()).thenReturn(vendor);
         return product;
     }
 }

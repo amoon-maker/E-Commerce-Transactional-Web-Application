@@ -5,7 +5,6 @@ import com.umhamza.ecommerce.dto.CartQuantityRequest;
 import com.umhamza.ecommerce.dto.CartResponse;
 import com.umhamza.ecommerce.service.CartService;
 import jakarta.validation.Valid;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;

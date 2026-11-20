@@ -13,9 +13,14 @@ import {
 
 import logo from "./assets/umhamzalogo.png";
 import familyQuantityImage from "./assets/products/FamilyQuantityOffer.png";
+import apricotJamImage from "./assets/products/ApricotJam.png";
+import cheeseNabulsiImage from "./assets/products/cheese nabulsi.png";
+import frozenSambousekImage from "./assets/products/Frozen Sambousek.png";
 import labanaShattaImage from "./assets/products/Labana Shatta.png";
+import mixedAcharImage from "./assets/products/Mixed Achar.png";
 import sumacBaladiImage from "./assets/products/Sumac Baladi.png";
 import walnutSaladImage from "./assets/products/WalnutSalad.png";
+import zatarBaladiImage from "./assets/products/Zatar Baladi.png";
 import groupImage from "./assets/groupummhamza.png";
 
 import "./App.css";
@@ -29,6 +34,7 @@ type Category =
 
 type Product = {
   id: number;
+  vendorId: number;
   name: string;
   category: Exclude<Category, "All Products">;
   description: string;
@@ -70,6 +76,7 @@ type CartItem = {
 type CartApiItem = {
   cartItemId: number;
   productId: number;
+  vendorId: number;
   sku: string;
   productName: string;
   description: string | null;
@@ -88,6 +95,70 @@ type FavoriteApiItem = {
   unitPrice: number;
   availableStock: number;
   active: boolean;
+};
+
+type OrderSummary = {
+  orderId: number;
+  orderNumber: string;
+  orderDate: string;
+  status: string;
+  subtotal: number;
+  discountAmount: number;
+  taxAmount: number;
+  shippingCost: number;
+  totalAmount: number;
+  invoiceNumber: string | null;
+};
+
+type OrderDetail = Omit<OrderSummary, "invoiceNumber"> & {
+  invoiceNumber?: string | null;
+  deliveryAddress: {
+    addressLabel: string | null;
+    addressLine1: string;
+    addressLine2: string | null;
+    city: string;
+    emirate: string;
+    postalCode: string | null;
+    country: string;
+    addressType: string;
+  };
+  items: {
+    productId: number;
+    sku: string;
+    productName: string;
+    quantity: number;
+    unitPrice: number;
+    lineTotal: number;
+  }[];
+  invoice: {
+    invoiceNumber: string;
+    issueDate: string;
+    subtotal: number;
+    discountAmount: number;
+    taxAmount: number;
+    shippingCost: number;
+    totalAmount: number;
+    status: string;
+  } | null;
+  payment: {
+    paymentMethod: string;
+    status: string;
+    authorizedAmount: number;
+    capturedAmount: number;
+    currencyCode: string;
+  } | null;
+  delivery: {
+    status: string;
+    deliveryMethod: string | null;
+    estimatedDeliveryDate: string | null;
+    actualDeliveryDate: string | null;
+    notes: string | null;
+  } | null;
+  statusHistory: {
+    status: string;
+    comment: string | null;
+    changedAt: string;
+  }[];
 };
 
 const apiBaseUrl = "http://localhost:8080";
@@ -154,6 +225,7 @@ function mapCartItems(data: CartApiResponse): CartItem[] {
   return data.items.map((item) => ({
     product: {
       id: item.productId,
+      vendorId: item.vendorId,
       name: item.productName,
       category: categoryForSku(item.sku),
       description: item.description ?? "Product details are unavailable.",
@@ -172,7 +244,15 @@ const formatPrice = (amount: number) => {
   }).format(amount);
 };
 
+const displayOrderStatus = (status: string) =>
+  (status === "OUT_FOR_DELIVERY" ? "SHIPPED" : status.replaceAll("_", " "));
+
 const productImagesBySku: Record<string, string> = {
+  "UH-CHS-500": cheeseNabulsiImage,
+  "UH-JAM-400": apricotJamImage,
+  "UH-PKL-1000": mixedAcharImage,
+  "UH-SMB-500": frozenSambousekImage,
+  "UH-ZTR-250": zatarBaladiImage,
   "UH-LBS-500": labanaShattaImage,
   "UH-SUM-500": sumacBaladiImage,
   "UH-WAL-500": walnutSaladImage,
@@ -234,25 +314,21 @@ function App() {
   const [orderConfirmed, setOrderConfirmed] = useState(false);
   const [orderLoading, setOrderLoading] = useState(false);
   const [orderError, setOrderError] = useState("");
-  type CreatedOrder = {
-    orderId?: number;
-    orderNumber?: string;
-    status?: string;
-    subtotal?: number;
-    totalAmount?: number;
-    total?: number;
-  };
+  const [orders, setOrders] = useState<OrderSummary[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersError, setOrdersError] = useState("");
+  const [vendorOrders, setVendorOrders] = useState<OrderDetail[]>([]);
+  const [vendorOrdersOpen, setVendorOrdersOpen] = useState(false);
+  const [vendorOrdersLoading, setVendorOrdersLoading] = useState(false);
+  const [vendorOrdersError, setVendorOrdersError] = useState("");
+  const [vendorActionBusy, setVendorActionBusy] = useState(false);
+  const [orderHistoryOpen, setOrderHistoryOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<OrderDetail | null>(null);
+  const [orderDetailLoading, setOrderDetailLoading] = useState(false);
 
   const [paymentMethod, setPaymentMethod] = useState("CREDIT");
 
-  const [cardDetails, setCardDetails] = useState({
-    cardholderName: "",
-    cardNumber: "",
-    expiryDate: "",
-    cvv: "",
-  });
-
-  const [createdOrder, setCreatedOrder] = useState<CreatedOrder | null>(null);
+  const [createdOrder, setCreatedOrder] = useState<OrderDetail | null>(null);
   const [darkMode, setDarkMode] = useState(false);
 
   const [loggedInUser, setLoggedInUser] = useState<{
@@ -263,14 +339,17 @@ function App() {
   const customerEmail = loggedInUser?.roles.includes("ROLE_CUSTOMER")
     ? loggedInUser.email
     : null;
+  const canManageVendorOrders = Boolean(loggedInUser?.roles.some(
+    (role) => role === "ROLE_VENDOR" || role === "ROLE_ADMIN",
+  ));
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
   const [customer, setCustomer] = useState({
-    name: "",
-    email: "",
-    phone: "",
     address: "",
+    city: "",
+    emirate: "",
+    postalCode: "",
   });
 
   // Scroll to cart when it opens
@@ -366,6 +445,7 @@ function App() {
 
           return {
             id: product.productId,
+            vendorId: product.vendorId,
             name: product.productName,
             category,
             description,
@@ -639,11 +719,171 @@ function App() {
     }
   }
 
+  async function openOrderHistory() {
+    if (!customerEmail) return;
+    setCartOpen(false);
+    setCheckoutOpen(false);
+    setOrderHistoryOpen(true);
+    setSelectedOrder(null);
+    setOrdersLoading(true);
+    setOrdersError("");
+    try {
+      const orderData = await customerApiRequest<OrderSummary[]>(
+        "/api/orders/my-orders",
+      );
+      setOrders(orderData);
+    } catch (error) {
+      setOrdersError(
+        error instanceof Error ? error.message : "Unable to load your orders.",
+      );
+    } finally {
+      setOrdersLoading(false);
+    }
+  }
+
+  async function showOrderDetails(orderId: number) {
+    setOrderDetailLoading(true);
+    setOrdersError("");
+    try {
+      const orderDetail = await customerApiRequest<OrderDetail>(
+        `/api/orders/my-orders/${orderId}`,
+      );
+      setSelectedOrder(orderDetail);
+    } catch (error) {
+      setOrdersError(
+        error instanceof Error ? error.message : "Unable to load order details.",
+      );
+    } finally {
+      setOrderDetailLoading(false);
+    }
+  }
+
+  async function payForOrder(orderId: number) {
+    setOrderDetailLoading(true);
+    setOrdersError("");
+    let detail: OrderDetail;
+    try {
+      detail = await customerApiRequest<OrderDetail>(
+        `/api/orders/my-orders/${orderId}/payment`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paymentMethod }),
+        },
+      );
+    } catch (error) {
+      setOrdersError(error instanceof Error ? error.message : "Unable to capture payment.");
+      setOrderDetailLoading(false);
+      return;
+    }
+
+    setSelectedOrder(detail);
+    setOrders((current) => current.map((order) => order.orderId === orderId
+      ? { ...order, status: detail.status, invoiceNumber: detail.invoice?.invoiceNumber ?? null }
+      : order));
+    try {
+      const summaries = await customerApiRequest<OrderSummary[]>("/api/orders/my-orders");
+      setOrders(summaries);
+    } catch {
+      setOrdersError("Payment was captured, but the order list could not be refreshed.");
+    } finally {
+      setOrderDetailLoading(false);
+    }
+  }
+
+  async function cancelCustomerOrder(orderId: number) {
+    setOrderDetailLoading(true);
+    setOrdersError("");
+    let detail: OrderDetail;
+    try {
+      detail = await customerApiRequest<OrderDetail>(
+        `/api/orders/my-orders/${orderId}/cancel`,
+        { method: "POST" },
+      );
+    } catch (error) {
+      setOrdersError(error instanceof Error ? error.message : "Unable to cancel this order.");
+      setOrderDetailLoading(false);
+      return;
+    }
+
+    setSelectedOrder(detail);
+    setOrders((current) => current.map((order) => order.orderId === orderId
+      ? { ...order, status: detail.status, invoiceNumber: detail.invoice?.invoiceNumber ?? null }
+      : order));
+    try {
+      const summaries = await customerApiRequest<OrderSummary[]>("/api/orders/my-orders");
+      setOrders(summaries);
+    } catch {
+      setOrdersError("The order was cancelled, but the order list could not be refreshed.");
+    } finally {
+      setOrderDetailLoading(false);
+    }
+  }
+
+  async function refreshVendorOrders() {
+    setVendorOrdersLoading(true);
+    setVendorOrdersError("");
+    try {
+      const data = await customerApiRequest<OrderDetail[]>("/api/vendor/orders");
+      setVendorOrders(data);
+    } catch (error) {
+      setVendorOrdersError(error instanceof Error ? error.message : "Unable to load vendor orders.");
+    } finally {
+      setVendorOrdersLoading(false);
+    }
+  }
+
+  async function openVendorOrders() {
+    setCartOpen(false);
+    setCheckoutOpen(false);
+    setOrderHistoryOpen(false);
+    setVendorOrdersOpen(true);
+    await refreshVendorOrders();
+  }
+
+  async function updateVendorOrder(orderId: number, action: string, body?: object) {
+    if (vendorActionBusy) return;
+    setVendorActionBusy(true);
+    setVendorOrdersError("");
+    let updatedOrder: OrderDetail;
+    try {
+      updatedOrder = await customerApiRequest<OrderDetail>(`/api/vendor/orders/${orderId}/${action}`, {
+        method: "PUT",
+        headers: body ? { "Content-Type": "application/json" } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+    } catch (error) {
+      setVendorOrdersError(error instanceof Error ? error.message : "Unable to update this order.");
+      setVendorActionBusy(false);
+      return;
+    }
+
+    setVendorOrders((current) => current.map((order) =>
+      order.orderId === orderId ? updatedOrder : order));
+    await refreshVendorOrders();
+    setVendorActionBusy(false);
+  }
+
+  async function rejectVendorOrder(orderId: number) {
+    const reason = window.prompt("Enter a reason for rejecting this order:")?.trim();
+    if (!reason) return;
+    if (reason.length > 500) {
+      setVendorOrdersError("The rejection reason must be 500 characters or fewer.");
+      return;
+    }
+    await updateVendorOrder(orderId, "reject", { reason });
+  }
+
   async function handleCheckout(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!loggedInUser) {
-      setOrderError("Please login before placing your order.");
+    if (!customerEmail) {
+      setOrderError("Please log in with a customer account before placing your order.");
+      return;
+    }
+
+    if (new Set(cart.map((item) => item.product.vendorId)).size > 1) {
+      setOrderError("Please place separate orders for products from different vendors.");
       return;
     }
 
@@ -651,74 +891,25 @@ function App() {
     setOrderError("");
 
     try {
-      // Get CSRF token
-      const csrfResponse = await fetch("http://localhost:8080/api/auth/csrf", {
-        credentials: "include",
-      });
-
-      if (!csrfResponse.ok) {
-        throw new Error("Unable to obtain security token.");
-      }
-
-      const csrfData = await csrfResponse.json();
-
-     // Get CSRF token from the cookie
-const csrfToken = document.cookie
-  .split("; ")
-  .find((cookie) => cookie.startsWith("XSRF-TOKEN="))
-  ?.substring("XSRF-TOKEN=".length);
-
-      // Prepare order request
       const orderRequest = {
         deliveryAddress: {
           addressLabel: "Delivery Address",
           addressLine1: customer.address,
           addressLine2: "",
-          city: "Dubai",
-          emirate: "Dubai",
-          postalCode: "00000",
+          city: customer.city,
+          emirate: customer.emirate,
+          postalCode: customer.postalCode,
           country: "United Arab Emirates",
           addressType: "HOME",
         },
-        items: cart.map((item) => ({
-          productId: item.product.id,
-          quantity: item.quantity,
-        })),
-        paymentMethod: paymentMethod,
       };
 
-      // Submit order
-      const orderResponse = await fetch("http://localhost:8080/api/orders", {
+      const orderData = await customerApiRequest<OrderDetail>("/api/orders", {
         method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          [csrfData.headerName]: decodeURIComponent(
-            csrfToken || csrfData.token,
-          ),
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(orderRequest),
       });
-
-      const orderData = await orderResponse.json();
-
-      if (!orderResponse.ok) {
-        throw new Error(orderData.message || "Unable to place your order.");
-      }
-
-      if (customerEmail) {
-        try {
-          await customerApiRequest<CartApiResponse>("/api/cart", {
-            method: "DELETE",
-          });
-        } catch {
-          setCartError(
-            "Your order was placed, but the saved cart could not be cleared.",
-          );
-        }
-      }
-
-      // Save real backend order response
+      setCart([]);
       setCreatedOrder(orderData);
       setOrderConfirmed(true);
     } catch (error) {
@@ -765,6 +956,10 @@ const csrfToken = document.cookie
       setFavoritesOnly(false);
       setCartError("");
       setFavoritesError("");
+      setOrders([]);
+      setSelectedOrder(null);
+      setOrderHistoryOpen(false);
+      setOrdersError("");
     }
   }
   return (
@@ -810,6 +1005,26 @@ const csrfToken = document.cookie
               ) : (
                 <Button className="login-button" onClick={handleLogout}>
                   Logout
+                </Button>
+              )}
+
+              {customerEmail && (
+                <Button
+                  className="login-button"
+                  variant="outline-success"
+                  onClick={openOrderHistory}
+                >
+                  My Orders
+                </Button>
+              )}
+
+              {canManageVendorOrders && (
+                <Button
+                  className="login-button"
+                  variant="outline-success"
+                  onClick={openVendorOrders}
+                >
+                  Vendor Orders
                 </Button>
               )}
 
@@ -1114,6 +1329,247 @@ const csrfToken = document.cookie
           </Container>
         </section>
 
+        {orderHistoryOpen && customerEmail && (
+          <section className="cart-section" aria-label="Order history">
+            <Container>
+              <div className="cart-panel">
+                <div className="cart-heading">
+                  <div>
+                    <span className="eyebrow">YOUR ACCOUNT</span>
+                    <h2>My Orders</h2>
+                  </div>
+                  <Button
+                    variant="outline-secondary"
+                    onClick={() => {
+                      setOrderHistoryOpen(false);
+                      setSelectedOrder(null);
+                    }}
+                  >
+                    Close
+                  </Button>
+                </div>
+
+                {ordersLoading && <p>Loading your orders...</p>}
+                {ordersError && (
+                  <div className="alert alert-danger" role="alert">
+                    {ordersError}
+                  </div>
+                )}
+                {!ordersLoading && !ordersError && orders.length === 0 && (
+                  <p>You have not placed any orders yet.</p>
+                )}
+
+                {orders.map((order) => (
+                  <div className="checkout-summary-item" key={order.orderId}>
+                    <span>
+                      <strong>{order.orderNumber}</strong>
+                      <br />
+                      <small>
+                        {new Date(order.orderDate).toLocaleString()} · {displayOrderStatus(order.status)}
+                        {order.invoiceNumber ? ` · ${order.invoiceNumber}` : ""}
+                      </small>
+                    </span>
+                    <span className="d-flex align-items-center gap-3">
+                      <strong>{formatPrice(order.totalAmount)}</strong>
+                      <Button
+                        variant="outline-success"
+                        size="sm"
+                        onClick={() => showOrderDetails(order.orderId)}
+                        disabled={orderDetailLoading}
+                      >
+                        View Details
+                      </Button>
+                    </span>
+                  </div>
+                ))}
+
+                {orderDetailLoading && <p>Loading order details...</p>}
+                {selectedOrder && (
+                  <div className="mt-4">
+                    <h3>Order {selectedOrder.orderNumber}</h3>
+                    <p>
+                      {selectedOrder.deliveryAddress.addressLine1}
+                      {selectedOrder.deliveryAddress.addressLine2
+                        ? `, ${selectedOrder.deliveryAddress.addressLine2}`
+                        : ""}
+                      , {selectedOrder.deliveryAddress.city}, {selectedOrder.deliveryAddress.emirate}{" "}
+                      {selectedOrder.deliveryAddress.postalCode ?? ""}, {selectedOrder.deliveryAddress.country}
+                    </p>
+                    {selectedOrder.items.map((item, index) => (
+                      <div className="checkout-summary-item" key={`${item.productId}-${index}`}>
+                        <span>{item.productName} × {item.quantity}</span>
+                        <strong>{formatPrice(item.lineTotal)}</strong>
+                      </div>
+                    ))}
+                    <div className="checkout-summary-total">
+                      <span>Subtotal</span>
+                      <strong>{formatPrice(selectedOrder.subtotal)}</strong>
+                    </div>
+                    <div className="checkout-summary-item">
+                      <span>Tax and shipping</span>
+                      <strong>
+                        {formatPrice(selectedOrder.taxAmount + selectedOrder.shippingCost)}
+                      </strong>
+                    </div>
+                    <div className="checkout-summary-total">
+                      <span>Total</span>
+                      <strong>{formatPrice(selectedOrder.totalAmount)}</strong>
+                    </div>
+                    {selectedOrder.invoice && (
+                      <p className="mt-3 mb-0">
+                        Invoice {selectedOrder.invoice.invoiceNumber} · Issued {selectedOrder.invoice.issueDate} · {selectedOrder.invoice.status}
+                      </p>
+                    )}
+                    {selectedOrder.payment ? (
+                      <p className="mt-3 mb-0">
+                        Payment: {selectedOrder.payment.paymentMethod} · {selectedOrder.payment.status}
+                        {selectedOrder.payment.status === "CAPTURED"
+                          ? ` · ${formatPrice(selectedOrder.payment.capturedAmount)}`
+                          : ""}
+                      </p>
+                    ) : (
+                      <p className="mt-3 mb-0">Payment has not been captured.</p>
+                    )}
+                    {selectedOrder.delivery && (
+                      <p className="mt-2 mb-0">
+                        Delivery: {displayOrderStatus(selectedOrder.delivery.status)}
+                        {selectedOrder.delivery.actualDeliveryDate
+                          ? ` · delivered ${selectedOrder.delivery.actualDeliveryDate}`
+                          : ""}
+                      </p>
+                    )}
+                    {selectedOrder.statusHistory.length > 0 && (
+                      <div className="mt-3">
+                        <strong>Order updates</strong>
+                        {selectedOrder.statusHistory.map((entry, index) => (
+                          <p className="mb-1" key={`${entry.changedAt}-${index}`}>
+                            <small>
+                              {new Date(entry.changedAt).toLocaleString()} · {displayOrderStatus(entry.status)}
+                              {entry.comment ? ` · ${entry.comment}` : ""}
+                            </small>
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                    {selectedOrder.status === "APPROVED_AWAITING_PAYMENT" && (
+                      <div className="d-flex align-items-center gap-2 mt-3">
+                        <Form.Select
+                          aria-label="Payment method"
+                          value={paymentMethod}
+                          onChange={(event) => setPaymentMethod(event.target.value)}
+                          style={{ maxWidth: 220 }}
+                        >
+                          <option value="CREDIT">Credit Card (simulated)</option>
+                          <option value="DEBIT">Debit Card (simulated)</option>
+                        </Form.Select>
+                        <Button
+                          variant="success"
+                          disabled={orderDetailLoading}
+                          onClick={() => void payForOrder(selectedOrder.orderId)}
+                        >
+                          Pay now
+                        </Button>
+                      </div>
+                    )}
+                    {["PENDING_VENDOR_APPROVAL", "APPROVED_AWAITING_PAYMENT", "PROCESSING", "READY_FOR_DELIVERY"]
+                      .includes(selectedOrder.status) && (
+                      <Button
+                        className="mt-3"
+                        variant="outline-danger"
+                        disabled={orderDetailLoading}
+                        onClick={() => void cancelCustomerOrder(selectedOrder.orderId)}
+                      >
+                        Cancel order
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </Container>
+          </section>
+        )}
+
+        {vendorOrdersOpen && canManageVendorOrders && (
+          <section className="cart-section" aria-label="Vendor orders">
+            <Container>
+              <div className="cart-panel">
+                <div className="cart-heading">
+                  <div>
+                    <span className="eyebrow">ORDER MANAGEMENT</span>
+                    <h2>Vendor Orders</h2>
+                  </div>
+                  <Button variant="outline-secondary" onClick={() => setVendorOrdersOpen(false)}>
+                    Close
+                  </Button>
+                </div>
+                {vendorOrdersError && (
+                  <div className="alert alert-danger" role="alert">{vendorOrdersError}</div>
+                )}
+                {vendorOrdersLoading && <p>Loading orders...</p>}
+                {!vendorOrdersLoading && !vendorOrdersError && vendorOrders.length === 0 && (
+                  <p>No orders are available for this vendor account.</p>
+                )}
+                {vendorOrders.map((order) => (
+                  <div className="border rounded p-3 mb-3" key={order.orderId}>
+                    <div className="d-flex justify-content-between align-items-start gap-3">
+                      <div>
+                        <strong>{order.orderNumber}</strong>
+                        <div>{displayOrderStatus(order.status)} · {formatPrice(order.totalAmount)}</div>
+                        <small>{new Date(order.orderDate).toLocaleString()}</small>
+                      </div>
+                      {order.status === "PENDING_VENDOR_APPROVAL" && (
+                        <div className="d-flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="success"
+                            disabled={vendorActionBusy}
+                            onClick={() => void updateVendorOrder(order.orderId, "approve")}
+                          >
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline-danger"
+                            disabled={vendorActionBusy}
+                            onClick={() => void rejectVendorOrder(order.orderId)}
+                          >
+                            Reject
+                          </Button>
+                        </div>
+                      )}
+                      {order.status === "PROCESSING" && (
+                        <Button size="sm" disabled={vendorActionBusy}
+                          onClick={() => void updateVendorOrder(order.orderId, "delivery-status", { status: "READY_FOR_DELIVERY" })}>
+                          Mark ready
+                        </Button>
+                      )}
+                      {order.status === "READY_FOR_DELIVERY" && (
+                        <Button size="sm" disabled={vendorActionBusy}
+                          onClick={() => void updateVendorOrder(order.orderId, "delivery-status", { status: "OUT_FOR_DELIVERY" })}>
+                          Mark shipped
+                        </Button>
+                      )}
+                      {order.status === "OUT_FOR_DELIVERY" && (
+                        <Button size="sm" disabled={vendorActionBusy}
+                          onClick={() => void updateVendorOrder(order.orderId, "delivery-status", { status: "DELIVERED" })}>
+                          Mark delivered
+                        </Button>
+                      )}
+                    </div>
+                    <ul className="mt-3 mb-0">
+                      {order.items.map((item, index) => (
+                        <li key={`${order.orderId}-${item.productId}-${index}`}>
+                          {item.productName} × {item.quantity}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </Container>
+          </section>
+        )}
+
         {cartOpen && (
           <section
             id="shopping-cart"
@@ -1133,7 +1589,7 @@ const csrfToken = document.cookie
 
                     <span className="eyebrow">ORDER CONFIRMED</span>
 
-                    <h2>Thank you, {customer.name}!</h2>
+                    <h2>Thank you for your order!</h2>
 
                     <p>Your order has been successfully placed.</p>
 
@@ -1142,28 +1598,34 @@ const csrfToken = document.cookie
                       {createdOrder?.orderNumber || createdOrder?.orderId}
                       <br />
                       <strong>Order Status:</strong>{" "}
-                      {createdOrder?.status || "PENDING_VENDOR_APPROVAL"}
+                      {displayOrderStatus(createdOrder?.status || "PENDING_VENDOR_APPROVAL")}
+                      {createdOrder?.invoice?.invoiceNumber && (
+                        <>
+                          <br />
+                          <strong>Invoice Number:</strong> {createdOrder.invoice.invoiceNumber}
+                        </>
+                      )}
                     </div>
 
                     <h3>Order Summary</h3>
 
-                    {cart.map((item) => (
+                    {(createdOrder?.items ?? []).map((item, index) => (
                       <div
                         className="checkout-summary-item"
-                        key={item.product.id}
+                        key={`${item.productId}-${index}`}
                       >
                         <span>
-                          {item.product.name} × {item.quantity}
+                          {item.productName} × {item.quantity}
                         </span>
                         <strong>
-                          {formatPrice(item.product.price * item.quantity)}
+                          {formatPrice(item.lineTotal)}
                         </strong>
                       </div>
                     ))}
 
                     <div className="checkout-summary-total">
                       <span>Order Total</span>
-                      <strong>{formatPrice(cartTotal)}</strong>
+                      <strong>{formatPrice(createdOrder?.totalAmount ?? cartTotal)}</strong>
                     </div>
 
                     <Button
@@ -1174,15 +1636,29 @@ const csrfToken = document.cookie
                         setCartOpen(false);
                         setCart([]);
                         setCustomer({
-                          name: "",
-                          email: "",
-                          phone: "",
                           address: "",
+                          city: "",
+                          emirate: "",
+                          postalCode: "",
                         });
                       }}
                     >
                       Return to Storefront
                     </Button>
+                    {customerEmail && (
+                      <Button
+                        className="primary-button"
+                        variant="outline-success"
+                        onClick={() => {
+                          setOrderConfirmed(false);
+                          setCartOpen(false);
+                          setCart([]);
+                          void openOrderHistory();
+                        }}
+                      >
+                        View My Orders
+                      </Button>
+                    )}
                   </div>
                 ) : checkoutOpen ? (
                   <div className="checkout-form">
@@ -1201,8 +1677,20 @@ const csrfToken = document.cookie
                     </div>
 
                     <p>
-                      Please enter your details to continue with your order.
+                      Enter your delivery details. Payment will be available after vendor approval.
                     </p>
+
+                    {!customerEmail && (
+                      <div className="alert alert-info" role="status">
+                        Log in with a customer account before placing an order.
+                        <Button
+                          variant="link"
+                          onClick={() => setAuthModalOpen(true)}
+                        >
+                          Login / Register
+                        </Button>
+                      </div>
+                    )}
 
                     <div className="checkout-order-summary">
                       <h3>Order Summary</h3>
@@ -1229,55 +1717,6 @@ const csrfToken = document.cookie
                     </div>
 
                     <Form onSubmit={handleCheckout}>
-                      {/* Customer Information */}
-                      <Form.Group className="mb-3">
-                        <Form.Label>Full Name</Form.Label>
-                        <Form.Control
-                          type="text"
-                          placeholder="Enter your full name"
-                          value={customer.name}
-                          onChange={(event) =>
-                            setCustomer({
-                              ...customer,
-                              name: event.target.value,
-                            })
-                          }
-                          required
-                        />
-                      </Form.Group>
-
-                      <Form.Group className="mb-3">
-                        <Form.Label>Email Address</Form.Label>
-                        <Form.Control
-                          type="email"
-                          placeholder="Enter your email"
-                          value={customer.email}
-                          onChange={(event) =>
-                            setCustomer({
-                              ...customer,
-                              email: event.target.value,
-                            })
-                          }
-                          required
-                        />
-                      </Form.Group>
-
-                      <Form.Group className="mb-3">
-                        <Form.Label>Phone Number</Form.Label>
-                        <Form.Control
-                          type="tel"
-                          placeholder="Enter your phone number"
-                          value={customer.phone}
-                          onChange={(event) =>
-                            setCustomer({
-                              ...customer,
-                              phone: event.target.value,
-                            })
-                          }
-                          required
-                        />
-                      </Form.Group>
-
                       <Form.Group className="mb-3">
                         <Form.Label>Delivery Address</Form.Label>
                         <Form.Control
@@ -1295,121 +1734,45 @@ const csrfToken = document.cookie
                         />
                       </Form.Group>
 
-                      {/* Payment Method */}
-                      <div className="payment-section mt-4 mb-4">
-                        <h5 className="mb-3">Payment Method</h5>
-
-                        <Form.Check
-                          type="radio"
-                          name="paymentMethod"
-                          id="creditPayment"
-                          label="Credit Card"
-                          value="CREDIT"
-                          checked={paymentMethod === "CREDIT"}
-                          onChange={(event) =>
-                            setPaymentMethod(event.target.value)
-                          }
-                          className="mb-2"
-                        />
-
-                        <Form.Check
-                          type="radio"
-                          name="paymentMethod"
-                          id="debitPayment"
-                          label="Debit Card"
-                          value="DEBIT"
-                          checked={paymentMethod === "DEBIT"}
-                          onChange={(event) =>
-                            setPaymentMethod(event.target.value)
-                          }
-                          className="mb-3"
-                        />
-
-                        {/* Simulated Card Details */}
-                        <div className="card-payment-details">
+                      <Row>
+                        <Col md={6}>
                           <Form.Group className="mb-3">
-                            <Form.Label>Cardholder Name</Form.Label>
+                            <Form.Label>City</Form.Label>
                             <Form.Control
-                              type="text"
-                              placeholder="Name on card"
-                              value={cardDetails.cardholderName}
+                              value={customer.city}
                               onChange={(event) =>
-                                setCardDetails({
-                                  ...cardDetails,
-                                  cardholderName: event.target.value,
-                                })
+                                setCustomer({ ...customer, city: event.target.value })
                               }
                               required
                             />
                           </Form.Group>
-
+                        </Col>
+                        <Col md={6}>
                           <Form.Group className="mb-3">
-                            <Form.Label>Card Number</Form.Label>
+                            <Form.Label>Emirate</Form.Label>
                             <Form.Control
-                              type="text"
-                              inputMode="numeric"
-                              placeholder="1234 5678 9012 3456"
-                              maxLength={19}
-                              value={cardDetails.cardNumber}
+                              value={customer.emirate}
                               onChange={(event) =>
-                                setCardDetails({
-                                  ...cardDetails,
-                                  cardNumber: event.target.value,
-                                })
+                                setCustomer({ ...customer, emirate: event.target.value })
                               }
                               required
                             />
                           </Form.Group>
+                        </Col>
+                      </Row>
+                      <Form.Group className="mb-3">
+                        <Form.Label>Postal Code (optional)</Form.Label>
+                        <Form.Control
+                          value={customer.postalCode}
+                          onChange={(event) =>
+                            setCustomer({ ...customer, postalCode: event.target.value })
+                          }
+                        />
+                      </Form.Group>
 
-                          <Row>
-                            <Col md={6}>
-                              <Form.Group className="mb-3">
-                                <Form.Label>Expiry Date</Form.Label>
-                                <Form.Control
-                                  type="month"
-                                  value={cardDetails.expiryDate}
-                                  onChange={(event) =>
-                                    setCardDetails({
-                                      ...cardDetails,
-                                      expiryDate: event.target.value,
-                                    })
-                                  }
-                                  required
-                                />
-                              </Form.Group>
-                            </Col>
-
-                            <Col md={6}>
-                              <Form.Group className="mb-3">
-                                <Form.Label>CVV</Form.Label>
-                                <Form.Control
-                                  type="password"
-                                  inputMode="numeric"
-                                  placeholder="123"
-                                  maxLength={4}
-                                  value={cardDetails.cvv}
-                                  onChange={(event) =>
-                                    setCardDetails({
-                                      ...cardDetails,
-                                      cvv: event.target.value,
-                                    })
-                                  }
-                                  required
-                                />
-                              </Form.Group>
-                            </Col>
-                          </Row>
-                        </div>
-
-                        {/* Student Project Payment Notice */}
-                        <div className="alert alert-info mt-3">
-                          <strong>Simulated Payment</strong>
-                          <p className="mb-0 mt-1">
-                            This is a student project demonstration. No real
-                            payment will be processed and no actual money will
-                            be charged.
-                          </p>
-                        </div>
+                      <div className="alert alert-info mt-3 mb-4">
+                        Payment becomes available after the vendor approves your order.
+                        The payment methods are simulated for this student project.
                       </div>
 
                       {/* Order Total */}
@@ -1429,7 +1792,7 @@ const csrfToken = document.cookie
                       <Button
                         type="submit"
                         className="primary-button"
-                        disabled={orderLoading}
+                        disabled={orderLoading || !customerEmail}
                       >
                         {orderLoading ? "Processing Payment..." : "Place Order"}
                       </Button>
@@ -1542,8 +1905,8 @@ const csrfToken = document.cookie
                         </div>
 
                         <p className="cart-note">
-                          Sample prices for the school project. Checkout is not
-                          connected yet.
+                          Sample prices for the school project. Sign in with a
+                          customer account to place an order.
                         </p>
 
                         <Button

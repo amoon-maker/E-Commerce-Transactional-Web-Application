@@ -63,6 +63,12 @@ public class SecurityConfig {
                 .requestMatchers("/api/cart", "/api/cart/**", "/api/favorites", "/api/favorites/**")
                 .hasRole("CUSTOMER")
 
+                .requestMatchers("/api/orders", "/api/orders/**")
+                .hasRole("CUSTOMER")
+
+                .requestMatchers("/api/vendor/orders", "/api/vendor/orders/**")
+                .hasAnyRole("ADMIN", "VENDOR")
+
                 .requestMatchers(
                     org.springframework.http.HttpMethod.GET,
                     "/api/products",

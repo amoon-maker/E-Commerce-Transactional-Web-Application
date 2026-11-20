@@ -58,4 +58,5 @@ public class ShoppingCart {
     public Long getCartId() { return cartId; }
     public Customer getCustomer() { return customer; }
     public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
 }
