@@ -49,6 +49,7 @@ type BackendProduct = {
   packageUnit: string | null;
   active: boolean;
   stockQuantity: number;
+  reservedQuantity: number;
   status: string;
   variants: {
     variantId: number;
@@ -65,6 +66,104 @@ type CartItem = {
   product: Product;
   quantity: number;
 };
+
+type CartApiItem = {
+  cartItemId: number;
+  productId: number;
+  sku: string;
+  productName: string;
+  description: string | null;
+  unitPrice: number;
+  quantity: number;
+  availableStock: number;
+  active: boolean;
+};
+
+type CartApiResponse = { items: CartApiItem[] };
+
+type FavoriteApiItem = {
+  productId: number;
+  sku: string;
+  productName: string;
+  unitPrice: number;
+  availableStock: number;
+  active: boolean;
+};
+
+const apiBaseUrl = "http://localhost:8080";
+
+async function customerApiRequest<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const method = options.method?.toUpperCase() ?? "GET";
+  const headers = new Headers(options.headers);
+
+  if (!["GET", "HEAD", "OPTIONS"].includes(method)) {
+    const csrfResponse = await fetch(`${apiBaseUrl}/api/auth/csrf`, {
+      credentials: "include",
+    });
+    if (!csrfResponse.ok) {
+      throw new Error("Unable to obtain security token.");
+    }
+
+    const csrfData: { headerName: string; token: string } =
+      await csrfResponse.json();
+    const csrfCookie = document.cookie
+      .split(";")
+      .map((cookie) => cookie.trim())
+      .find((cookie) => cookie.startsWith("XSRF-TOKEN="));
+    const csrfToken = csrfCookie
+      ? decodeURIComponent(csrfCookie.substring("XSRF-TOKEN=".length))
+      : csrfData.token;
+    headers.set(csrfData.headerName, csrfToken);
+  }
+
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    ...options,
+    method,
+    headers,
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    let message = "The request could not be completed.";
+    const responseText = await response.text();
+    try {
+      const errorBody = JSON.parse(responseText);
+      message = errorBody.message ?? errorBody.detail ?? message;
+    } catch {
+      if (responseText) message = responseText;
+    }
+    throw new Error(message);
+  }
+
+  if (response.status === 204) return undefined as T;
+  return response.json() as Promise<T>;
+}
+
+function categoryForSku(sku: string): Exclude<Category, "All Products"> {
+  if (["UH-CHS-500", "UH-LBS-500"].includes(sku)) return "Dairy & Cheese";
+  if (["UH-ZTR-250", "UH-SUM-500", "LP-MNT-100"].includes(sku)) {
+    return "Herbs & Spices";
+  }
+  return "Traditional Pantry";
+}
+
+function mapCartItems(data: CartApiResponse): CartItem[] {
+  return data.items.map((item) => ({
+    product: {
+      id: item.productId,
+      name: item.productName,
+      category: categoryForSku(item.sku),
+      description: item.description ?? "Product details are unavailable.",
+      price: Number(item.unitPrice),
+      image: productImagesBySku[item.sku] ?? null,
+      stockQuantity: item.active ? item.availableStock : 0,
+    },
+    quantity: item.quantity,
+  }));
+}
 
 const formatPrice = (amount: number) => {
   return new Intl.NumberFormat("en-AE", {
@@ -124,6 +223,12 @@ function App() {
   const [productsLoading, setProductsLoading] = useState(true);
   const [productsError, setProductsError] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [cartBusy, setCartBusy] = useState(false);
+  const [cartError, setCartError] = useState("");
+  const [favorites, setFavorites] = useState<Set<number>>(new Set());
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [favoritesBusy, setFavoritesBusy] = useState(false);
+  const [favoritesError, setFavoritesError] = useState("");
   const [cartOpen, setCartOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [orderConfirmed, setOrderConfirmed] = useState(false);
@@ -154,6 +259,10 @@ function App() {
     email: string;
     roles: string[];
   } | null>(null);
+  const [sessionChecked, setSessionChecked] = useState(false);
+  const customerEmail = loggedInUser?.roles.includes("ROLE_CUSTOMER")
+    ? loggedInUser.email
+    : null;
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
@@ -176,7 +285,7 @@ function App() {
 
   // Load products from backend
   useEffect(() => {
-    fetch("http://localhost:8080/api/products")
+    fetch(`${apiBaseUrl}/api/products`)
       .then((response) => {
         if (!response.ok) {
           throw new Error("Failed to load products");
@@ -188,7 +297,7 @@ function App() {
         const activeProducts = data.filter(
           (product) =>
             product.active &&
-            product.stockQuantity > 0 &&
+            product.stockQuantity - (product.reservedQuantity ?? 0) > 0 &&
             product.sku !== "VENDOR-AUTH-TEST-20261117",
         );
         const mappedProducts: Product[] = activeProducts.map((product) => {
@@ -262,7 +371,10 @@ function App() {
             description,
             price: product.salePrice ?? product.price,
             image,
-            stockQuantity: product.stockQuantity,
+            stockQuantity: Math.max(
+              0,
+              product.stockQuantity - (product.reservedQuantity ?? 0),
+            ),
           };
         });
 
@@ -277,6 +389,56 @@ function App() {
         setProductsLoading(false);
       });
   }, []);
+
+  // Restore an existing authenticated session after a page refresh.
+  useEffect(() => {
+    let active = true;
+    fetch(`${apiBaseUrl}/api/auth/me`, { credentials: "include" })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        return response.json();
+      })
+      .then((user) => {
+        if (active && user) setLoggedInUser(user);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (active) setSessionChecked(true);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Load customer-owned cart and favorites after login or session restoration.
+  useEffect(() => {
+    if (!sessionChecked || !customerEmail) return;
+    let active = true;
+
+    Promise.all([
+      customerApiRequest<CartApiResponse>("/api/cart"),
+      customerApiRequest<FavoriteApiItem[]>("/api/favorites"),
+    ])
+      .then(([cartData, favoriteData]) => {
+        if (!active) return;
+        setCart(mapCartItems(cartData));
+        setFavorites(new Set(favoriteData.map((favorite) => favorite.productId)));
+        setCartError("");
+        setFavoritesError("");
+      })
+      .catch((error) => {
+        if (!active) return;
+        const message =
+          error instanceof Error ? error.message : "Unable to load saved items.";
+        setCartError(message);
+        setFavoritesError(message);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [sessionChecked, customerEmail]);
 
   const categories: Category[] = [
     "All Products",
@@ -294,7 +456,9 @@ function App() {
       .toLowerCase()
       .includes(searchTerm.trim().toLowerCase());
 
-    return matchesCategory && matchesSearch;
+    const matchesFavorites = !favoritesOnly || favorites.has(product.id);
+
+    return matchesCategory && matchesSearch && matchesFavorites;
   });
 
   const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
@@ -303,8 +467,36 @@ function App() {
     (total, item) => total + item.product.price * item.quantity,
     0,
   );
+  const cartHasUnavailableItem = cart.some(
+    (item) => item.quantity > item.product.stockQuantity,
+  );
 
-  function addToCart(product: Product) {
+  async function addToCart(product: Product) {
+    if (cartBusy) return;
+
+    if (customerEmail) {
+      setCartBusy(true);
+      setCartError("");
+      try {
+        const response = await customerApiRequest<CartApiResponse>(
+          "/api/cart/items",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ productId: product.id, quantity: 1 }),
+          },
+        );
+        setCart(mapCartItems(response));
+      } catch (error) {
+        setCartError(
+          error instanceof Error ? error.message : "Unable to add this product.",
+        );
+      } finally {
+        setCartBusy(false);
+      }
+      return;
+    }
+
     setCart((currentCart) => {
       const existingItem = currentCart.find(
         (item) => item.product.id === product.id,
@@ -330,7 +522,43 @@ function App() {
     });
   }
 
-  function changeQuantity(productId: number, change: number) {
+  async function changeQuantity(productId: number, change: number) {
+    if (cartBusy) return;
+
+    if (customerEmail) {
+      const existingItem = cart.find((item) => item.product.id === productId);
+      if (!existingItem) return;
+      const requestedQuantity = existingItem.quantity + change;
+      const quantity = change < 0 && requestedQuantity > existingItem.product.stockQuantity
+        ? existingItem.product.stockQuantity
+        : requestedQuantity;
+      setCartBusy(true);
+      setCartError("");
+      try {
+        const response = quantity <= 0
+          ? await customerApiRequest<CartApiResponse>(
+              `/api/cart/items/${productId}`,
+              { method: "DELETE" },
+            )
+          : await customerApiRequest<CartApiResponse>(
+              `/api/cart/items/${productId}`,
+              {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ quantity }),
+              },
+            );
+        setCart(mapCartItems(response));
+      } catch (error) {
+        setCartError(
+          error instanceof Error ? error.message : "Unable to update the cart.",
+        );
+      } finally {
+        setCartBusy(false);
+      }
+      return;
+    }
+
     setCart((currentCart) =>
       currentCart
         .map((item) => {
@@ -348,6 +576,67 @@ function App() {
         })
         .filter((item) => item.quantity > 0),
     );
+  }
+
+  async function clearCart() {
+    if (cartBusy) return;
+    if (!customerEmail) {
+      setCart([]);
+      setCartError("");
+      return;
+    }
+
+    setCartBusy(true);
+    setCartError("");
+    try {
+      const response = await customerApiRequest<CartApiResponse>("/api/cart", {
+        method: "DELETE",
+      });
+      setCart(mapCartItems(response));
+    } catch (error) {
+      setCartError(
+        error instanceof Error ? error.message : "Unable to clear the cart.",
+      );
+    } finally {
+      setCartBusy(false);
+    }
+  }
+
+  async function toggleFavorite(product: Product) {
+    if (!customerEmail) {
+      if (!loggedInUser) setAuthModalOpen(true);
+      setFavoritesError("Log in with a customer account to save favorites.");
+      return;
+    }
+    if (favoritesBusy) return;
+
+    setFavoritesBusy(true);
+    setFavoritesError("");
+    try {
+      if (favorites.has(product.id)) {
+        await customerApiRequest<void>(`/api/favorites/${product.id}`, {
+          method: "DELETE",
+        });
+        setFavorites((current) => {
+          const next = new Set(current);
+          next.delete(product.id);
+          return next;
+        });
+      } else {
+        await customerApiRequest<FavoriteApiItem>("/api/favorites", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ productId: product.id }),
+        });
+        setFavorites((current) => new Set(current).add(product.id));
+      }
+    } catch (error) {
+      setFavoritesError(
+        error instanceof Error ? error.message : "Unable to update favorites.",
+      );
+    } finally {
+      setFavoritesBusy(false);
+    }
   }
 
   async function handleCheckout(event: React.FormEvent<HTMLFormElement>) {
@@ -417,6 +706,18 @@ const csrfToken = document.cookie
         throw new Error(orderData.message || "Unable to place your order.");
       }
 
+      if (customerEmail) {
+        try {
+          await customerApiRequest<CartApiResponse>("/api/cart", {
+            method: "DELETE",
+          });
+        } catch {
+          setCartError(
+            "Your order was placed, but the saved cart could not be cleared.",
+          );
+        }
+      }
+
       // Save real backend order response
       setCreatedOrder(orderData);
       setOrderConfirmed(true);
@@ -455,9 +756,15 @@ const csrfToken = document.cookie
         },
       });
 
-      setLoggedInUser(null);
     } catch (error) {
       console.error("Logout error:", error);
+    } finally {
+      setLoggedInUser(null);
+      setCart([]);
+      setFavorites(new Set());
+      setFavoritesOnly(false);
+      setCartError("");
+      setFavoritesError("");
     }
   }
   return (
@@ -633,6 +940,23 @@ const csrfToken = document.cookie
                     {category}
                   </Button>
                 ))}
+                <Button
+                  className={favoritesOnly ? "category-button active" : "category-button"}
+                  onClick={() => {
+                    if (!customerEmail) {
+                      if (!loggedInUser) setAuthModalOpen(true);
+                      setFavoritesError(
+                        "Log in with a customer account to view favorites.",
+                      );
+                      return;
+                    }
+                    setFavoritesOnly((current) => !current);
+                    setFavoritesError("");
+                  }}
+                  aria-pressed={favoritesOnly}
+                >
+                  Favorites ({favorites.size})
+                </Button>
               </div>
 
               <Form.Control
@@ -644,6 +968,16 @@ const csrfToken = document.cookie
                 onChange={(event) => setSearchTerm(event.target.value)}
               />
             </div>
+            {favoritesError && (
+              <p className="text-center text-danger" role="alert">
+                {favoritesError}
+              </p>
+            )}
+            {cartError && (
+              <p className="text-center text-danger" role="alert">
+                {cartError}
+              </p>
+            )}
             {productsLoading && (
               <p className="text-center">Loading products...</p>
             )}
@@ -663,6 +997,23 @@ const csrfToken = document.cookie
                         imageClassName="product-image"
                         placeholderClassName="product-image-placeholder"
                       />
+                      <Button
+                        className={
+                          favorites.has(product.id)
+                            ? "favorite-toggle active"
+                            : "favorite-toggle"
+                        }
+                        onClick={() => toggleFavorite(product)}
+                        aria-label={
+                          favorites.has(product.id)
+                            ? `Remove ${product.name} from favorites`
+                            : `Add ${product.name} to favorites`
+                        }
+                        aria-pressed={favorites.has(product.id)}
+                        disabled={favoritesBusy}
+                      >
+                        {favorites.has(product.id) ? "♥" : "♡"}
+                      </Button>
                     </div>
 
                     <Card.Body className="d-flex flex-column">
@@ -689,6 +1040,7 @@ const csrfToken = document.cookie
                             <div className="product-quantity-controls">
                               <Button
                                 onClick={() => changeQuantity(product.id, -1)}
+                                disabled={cartBusy}
                                 aria-label={`Decrease ${product.name} quantity`}
                               >
                                 −
@@ -705,6 +1057,7 @@ const csrfToken = document.cookie
 
                               <Button
                                 onClick={() => changeQuantity(product.id, 1)}
+                                disabled={cartBusy}
                                 aria-label={`Increase ${product.name} quantity`}
                               >
                                 +
@@ -725,6 +1078,7 @@ const csrfToken = document.cookie
                           <Button
                             className="add-button"
                             onClick={() => addToCart(product)}
+                            disabled={cartBusy}
                             aria-label={`Add ${product.name} to cart`}
                           >
                             + Add to Cart
@@ -739,13 +1093,18 @@ const csrfToken = document.cookie
 
             {filteredProducts.length === 0 && (
               <div className="empty-results">
-                <h3>No products found</h3>
-                <p>Try another search term or select a different category.</p>
+                <h3>{favoritesOnly ? "No favorite products yet" : "No products found"}</h3>
+                <p>
+                  {favoritesOnly
+                    ? "Save a product with the heart button to see it here."
+                    : "Try another search term or select a different category."}
+                </p>
                 <Button
                   className="primary-button"
                   onClick={() => {
                     setSearchTerm("");
                     setSelectedCategory("All Products");
+                    setFavoritesOnly(false);
                   }}
                 >
                   Show All Products
@@ -763,6 +1122,11 @@ const csrfToken = document.cookie
           >
             <Container>
               <div className="cart-panel">
+                {cartError && (
+                  <div className="alert alert-danger" role="alert">
+                    {cartError}
+                  </div>
+                )}
                 {orderConfirmed ? (
                   <div className="order-confirmation">
                     <div className="confirmation-icon">✓</div>
@@ -1122,6 +1486,7 @@ const csrfToken = document.cookie
                                 onClick={() =>
                                   changeQuantity(item.product.id, -1)
                                 }
+                                disabled={cartBusy}
                                 aria-label={`Decrease ${item.product.name} quantity`}
                               >
                                 −
@@ -1134,11 +1499,36 @@ const csrfToken = document.cookie
                                 onClick={() =>
                                   changeQuantity(item.product.id, 1)
                                 }
+                                disabled={
+                                  cartBusy ||
+                                  item.quantity >= item.product.stockQuantity
+                                }
                                 aria-label={`Increase ${item.product.name} quantity`}
                               >
                                 +
                               </Button>
                             </div>
+
+                            <Button
+                              variant="link"
+                              className="remove-cart-item-button"
+                              onClick={() =>
+                                changeQuantity(
+                                  item.product.id,
+                                  -item.quantity,
+                                )
+                              }
+                              disabled={cartBusy}
+                              aria-label={`Remove ${item.product.name} from cart`}
+                            >
+                              Remove
+                            </Button>
+
+                            {item.quantity > item.product.stockQuantity && (
+                              <small className="text-danger">
+                                This product is unavailable or stock changed. Reduce or remove it to continue.
+                              </small>
+                            )}
 
                             <strong className="cart-item-total">
                               {formatPrice(item.product.price * item.quantity)}
@@ -1159,6 +1549,7 @@ const csrfToken = document.cookie
                         <Button
                           className="primary-button"
                           onClick={() => setCheckoutOpen(true)}
+                          disabled={cartBusy || cartHasUnavailableItem}
                         >
                           Continue to Checkout
                         </Button>
@@ -1166,7 +1557,8 @@ const csrfToken = document.cookie
                         <Button
                           variant="link"
                           className="clear-cart-button"
-                          onClick={() => setCart([])}
+                          onClick={clearCart}
+                          disabled={cartBusy}
                         >
                           Clear Cart
                         </Button>
