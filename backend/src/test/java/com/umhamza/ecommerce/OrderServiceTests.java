@@ -52,6 +52,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -75,6 +76,7 @@ class OrderServiceTests {
     private DeliveryRepository deliveryRepository;
     private RefundRepository refundRepository;
     private PaymentServiceSelector paymentServiceSelector;
+    private BankService paymentService;
     private OrderService orderService;
 
     private Authentication customerAuth;
@@ -104,6 +106,10 @@ class OrderServiceTests {
         deliveryRepository = mock(DeliveryRepository.class);
         refundRepository = mock(RefundRepository.class);
         paymentServiceSelector = mock(PaymentServiceSelector.class);
+        paymentService = mock(BankService.class);
+        when(paymentServiceSelector.getPaymentService("CREDIT")).thenReturn(paymentService);
+        when(paymentService.processPayment(any(BigDecimal.class), anyString()))
+                .thenReturn("Simulated payment succeeded.");
         orderService = new OrderService(
                 customerAccountService, userRepository, addressRepository,
                 cartRepository, cartItemRepository, orderRepository,
@@ -143,7 +149,7 @@ class OrderServiceTests {
     }
 
     @Test
-    void checkoutReservesStockRecordsPendingStatusAndConsumesCartAtomically() {
+    void checkoutReservesStockAndCreatesOrderPaymentInvoiceAndConsumesCart() {
         when(cartRepository.findByCustomerAndStatusForUpdate(7L, "ACTIVE"))
                 .thenReturn(Optional.of(cart));
         when(cartItemRepository.findByCartCartIdOrderByAddedAtAsc(81L))
@@ -159,8 +165,12 @@ class OrderServiceTests {
         verify(statusHistoryRepository).save(any());
         verify(cartItemRepository).deleteByCartCartId(81L);
         verify(cartRepository).save(cart);
-        verify(paymentRepository, never()).save(any());
-        verify(invoiceRepository, never()).save(any(Invoice.class));
+        verify(paymentService).processPayment(eq(new BigDecimal("25.00")),
+                org.mockito.ArgumentMatchers.matches("CREDIT-\\d{4}"));
+        verify(paymentRepository).save(org.mockito.ArgumentMatchers.argThat(payment ->
+                "CAPTURED".equals(payment.getStatus())
+                        && payment.getCapturedAmount().compareTo(new BigDecimal("25.00")) == 0));
+        verify(invoiceRepository).save(any(Invoice.class));
         verify(deliveryRepository, never()).save(any(Delivery.class));
     }
 
@@ -440,7 +450,8 @@ class OrderServiceTests {
 
     private OrderRequest request() {
         return new OrderRequest(new AddressRequest("Home", "Street 1", null,
-                "Dubai", "Dubai", null, "United Arab Emirates", "HOME"));
+                "Dubai", "Dubai", null, "United Arab Emirates", "HOME"),
+                new PaymentRequest("CREDIT"));
     }
 
     private Product product(Vendor owner, long productId, int stock, int reserved, String price) {

@@ -27,6 +27,7 @@ import groupImage from "./assets/groupummhamza.png";
 
 import "./App.css";
 import Auth from "./Auth";
+import CatalogManagementPanel from "./CatalogManagementPanel";
 
 type Category =
   | "All Products"
@@ -53,7 +54,7 @@ type BackendProduct = {
   description: string | null;
   price: number;
   salePrice: number | null;
-  packageSize: number;
+  packageSize: number | null;
   packageUnit: string | null;
   active: boolean;
   stockQuantity: number;
@@ -200,6 +201,9 @@ async function customerApiRequest<T>(
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      window.dispatchEvent(new Event("app-session-expired"));
+    }
     let message = "The request could not be completed.";
     const responseText = await response.text();
     try {
@@ -306,6 +310,7 @@ function App() {
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
   const [productsError, setProductsError] = useState("");
+  const [catalogReloadKey, setCatalogReloadKey] = useState(0);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartBusy, setCartBusy] = useState(false);
   const [cartError, setCartError] = useState("");
@@ -326,6 +331,8 @@ function App() {
   const [vendorOrdersLoading, setVendorOrdersLoading] = useState(false);
   const [vendorOrdersError, setVendorOrdersError] = useState("");
   const [vendorActionBusy, setVendorActionBusy] = useState(false);
+  const [vendorWorkspaceOpen, setVendorWorkspaceOpen] = useState(false);
+  const [adminManagementOpen, setAdminManagementOpen] = useState(false);
   const [orderHistoryOpen, setOrderHistoryOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<OrderDetail | null>(null);
   const [orderDetailLoading, setOrderDetailLoading] = useState(false);
@@ -338,6 +345,7 @@ function App() {
   const [loggedInUser, setLoggedInUser] = useState<{
     email: string;
     roles: string[];
+    vendorId?: number;
   } | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
   const customerEmail = loggedInUser?.roles.includes("ROLE_CUSTOMER")
@@ -346,6 +354,8 @@ function App() {
   const canManageVendorOrders = Boolean(loggedInUser?.roles.some(
     (role) => role === "ROLE_VENDOR" || role === "ROLE_ADMIN",
   ));
+  const isVendor = Boolean(loggedInUser?.roles.includes("ROLE_VENDOR"));
+  const isAdmin = Boolean(loggedInUser?.roles.includes("ROLE_ADMIN"));
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
@@ -355,6 +365,15 @@ function App() {
     emirate: "",
     postalCode: "",
   });
+
+  function scrollToNavigationSection(sectionId: string) {
+    window.requestAnimationFrame(() => {
+      document.getElementById(sectionId)?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }
 
   // Scroll to cart when it opens
   useEffect(() => {
@@ -472,6 +491,33 @@ function App() {
       .finally(() => {
         setProductsLoading(false);
       });
+  }, [catalogReloadKey]);
+
+  // Drop role-specific and customer-owned data as soon as the session expires.
+  useEffect(() => {
+    const clearExpiredSession = () => {
+      setLoggedInUser(null);
+      setCart([]);
+      setFavorites(new Set());
+      setFavoritesOnly(false);
+      setOrders([]);
+      setSelectedOrder(null);
+      setVendorOrders([]);
+      setVendorOrdersOpen(false);
+      setVendorWorkspaceOpen(false);
+      setAdminManagementOpen(false);
+      setOrderHistoryOpen(false);
+      setCartOpen(false);
+      setCheckoutOpen(false);
+      setCartError("");
+      setFavoritesError("");
+      setOrdersError("");
+      setVendorOrdersError("");
+      setOrderError("");
+      setAuthModalOpen(false);
+    };
+    window.addEventListener("app-session-expired", clearExpiredSession);
+    return () => window.removeEventListener("app-session-expired", clearExpiredSession);
   }, []);
 
   // Restore an existing authenticated session after a page refresh.
@@ -727,7 +773,11 @@ function App() {
     if (!customerEmail) return;
     setCartOpen(false);
     setCheckoutOpen(false);
+    setVendorOrdersOpen(false);
+    setVendorWorkspaceOpen(false);
+    setAdminManagementOpen(false);
     setOrderHistoryOpen(true);
+    scrollToNavigationSection("my-orders-section");
     setSelectedOrder(null);
     setOrdersLoading(true);
     setOrdersError("");
@@ -841,7 +891,10 @@ function App() {
     setCartOpen(false);
     setCheckoutOpen(false);
     setOrderHistoryOpen(false);
+    setVendorWorkspaceOpen(false);
+    setAdminManagementOpen(false);
     setVendorOrdersOpen(true);
+    scrollToNavigationSection("vendor-orders-section");
     await refreshVendorOrders();
   }
 
@@ -906,6 +959,7 @@ function App() {
           country: "United Arab Emirates",
           addressType: "HOME",
         },
+        payment: { paymentMethod },
       };
 
       const orderData = await customerApiRequest<OrderDetail>("/api/orders", {
@@ -962,8 +1016,18 @@ function App() {
       setFavoritesError("");
       setOrders([]);
       setSelectedOrder(null);
+      setVendorOrders([]);
+      setVendorOrdersOpen(false);
+      setVendorWorkspaceOpen(false);
+      setAdminManagementOpen(false);
       setOrderHistoryOpen(false);
       setOrdersError("");
+      setVendorOrdersError("");
+      setCreatedOrder(null);
+      setOrderConfirmed(false);
+      setCheckoutOpen(false);
+      setCartOpen(false);
+      setCustomer({ address: "", city: "", emirate: "", postalCode: "" });
     }
   }
   return (
@@ -1032,6 +1096,40 @@ function App() {
                 </Button>
               )}
 
+              {isVendor && (
+                <Button
+                  className="login-button"
+                  variant="outline-success"
+                  onClick={() => {
+                    setVendorWorkspaceOpen(true);
+                    setAdminManagementOpen(false);
+                    setVendorOrdersOpen(false);
+                    setOrderHistoryOpen(false);
+                    setCartOpen(false);
+                    scrollToNavigationSection("vendor-workspace-section");
+                  }}
+                >
+                  Vendor Workspace
+                </Button>
+              )}
+
+              {isAdmin && (
+                <Button
+                  className="login-button"
+                  variant="outline-success"
+                  onClick={() => {
+                    setAdminManagementOpen(true);
+                    setVendorWorkspaceOpen(false);
+                    setVendorOrdersOpen(false);
+                    setOrderHistoryOpen(false);
+                    setCartOpen(false);
+                    scrollToNavigationSection("admin-management-section");
+                  }}
+                >
+                  Admin Management
+                </Button>
+              )}
+
               <Button
                 className="cart-button"
                 onClick={() => {
@@ -1068,6 +1166,14 @@ function App() {
 
             <Auth
               onLogin={(user) => {
+                setCart([]);
+                setFavorites(new Set());
+                setOrders([]);
+                setSelectedOrder(null);
+                setVendorOrders([]);
+                setVendorOrdersOpen(false);
+                setVendorWorkspaceOpen(false);
+                setAdminManagementOpen(false);
                 setLoggedInUser(user);
                 setAuthModalOpen(false);
               }}
@@ -1334,7 +1440,11 @@ function App() {
         </section>
 
         {orderHistoryOpen && customerEmail && (
-          <section className="cart-section" aria-label="Order history">
+          <section
+            id="my-orders-section"
+            className="cart-section navigation-scroll-target"
+            aria-label="Order history"
+          >
             <Container>
               <div className="cart-panel">
                 <div className="cart-heading">
@@ -1494,7 +1604,7 @@ function App() {
         )}
 
         {vendorOrdersOpen && canManageVendorOrders && (
-          <section className="cart-section" aria-label="Vendor orders">
+          <section id="vendor-orders-section" className="cart-section navigation-scroll-target" aria-label="Vendor orders">
             <Container>
               <div className="cart-panel">
                 <div className="cart-heading">
@@ -1574,6 +1684,27 @@ function App() {
           </section>
         )}
 
+        {vendorWorkspaceOpen && isVendor && (
+          <CatalogManagementPanel
+            sectionId="vendor-workspace-section"
+            isAdmin={false}
+            vendorId={loggedInUser?.vendorId}
+            apiRequest={customerApiRequest}
+            onProductsChanged={() => setCatalogReloadKey((key) => key + 1)}
+            onClose={() => setVendorWorkspaceOpen(false)}
+          />
+        )}
+
+        {adminManagementOpen && isAdmin && (
+          <CatalogManagementPanel
+            sectionId="admin-management-section"
+            isAdmin
+            apiRequest={customerApiRequest}
+            onProductsChanged={() => setCatalogReloadKey((key) => key + 1)}
+            onClose={() => setAdminManagementOpen(false)}
+          />
+        )}
+
         {cartOpen && (
           <section
             id="shopping-cart"
@@ -1595,7 +1726,10 @@ function App() {
 
                     <h2>Thank you for your order!</h2>
 
-                    <p>Your order has been successfully placed.</p>
+                    <p>
+                      Your simulated payment was captured with the order. The
+                      vendor will review it before fulfillment.
+                    </p>
 
                     <div className="confirmation-notice">
                       <strong>Order Number:</strong>{" "}
@@ -1607,6 +1741,12 @@ function App() {
                         <>
                           <br />
                           <strong>Invoice Number:</strong> {createdOrder.invoice.invoiceNumber}
+                        </>
+                      )}
+                      {createdOrder?.payment && (
+                        <>
+                          <br />
+                          <strong>Payment:</strong> {createdOrder.payment.paymentMethod} · {createdOrder.payment.status}
                         </>
                       )}
                     </div>
@@ -1681,7 +1821,8 @@ function App() {
                     </div>
 
                     <p>
-                      Enter your delivery details. Payment will be available after vendor approval.
+                      Enter your delivery details and choose a simulated payment
+                      method. Payment, order, and invoice are saved together.
                     </p>
 
                     {!customerEmail && (
@@ -1774,9 +1915,22 @@ function App() {
                         />
                       </Form.Group>
 
+                      <Form.Group className="mb-3">
+                        <Form.Label>Payment Method</Form.Label>
+                        <Form.Select
+                          value={paymentMethod}
+                          onChange={(event) => setPaymentMethod(event.target.value)}
+                          required
+                        >
+                          <option value="CREDIT">Credit Card (simulated)</option>
+                          <option value="DEBIT">Debit Card (simulated)</option>
+                        </Form.Select>
+                      </Form.Group>
+
                       <div className="alert alert-info mt-3 mb-4">
-                        Payment becomes available after the vendor approves your order.
-                        The payment methods are simulated for this student project.
+                        This student project simulates payment locally. Your
+                        payment, order, inventory reservation, and invoice are
+                        processed as one transaction.
                       </div>
 
                       {/* Order Total */}
@@ -1798,7 +1952,7 @@ function App() {
                         className="primary-button"
                         disabled={orderLoading || !customerEmail}
                       >
-                        {orderLoading ? "Processing Payment..." : "Place Order"}
+                        {orderLoading ? "Processing Purchase..." : "Place Order"}
                       </Button>
 
                       <Button

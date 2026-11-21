@@ -7,7 +7,11 @@ public record OrderRequest(
 
         @NotNull(message = "Delivery address is required")
         @Valid
-        AddressRequest deliveryAddress
+        AddressRequest deliveryAddress,
+
+        @NotNull(message = "Payment details are required")
+        @Valid
+        PaymentRequest payment
 
 ) {
 }

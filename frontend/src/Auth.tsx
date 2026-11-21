@@ -5,6 +5,7 @@ type AuthProps = {
   onLogin: (user: {
     email: string
     roles: string[]
+    vendorId?: number
   }) => void
 }
 

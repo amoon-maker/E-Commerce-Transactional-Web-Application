@@ -53,7 +53,8 @@ class OrderAuthorizationWebTests {
                 "emirate": "Dubai",
                 "country": "United Arab Emirates",
                 "addressType": "HOME"
-              }
+              },
+              "payment": { "paymentMethod": "CREDIT" }
             }
             """;
 

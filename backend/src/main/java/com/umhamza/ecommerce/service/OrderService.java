@@ -195,12 +195,20 @@ public class OrderService {
                 savedOrder,
                 customer.getUser(),
                 savedOrder.getStatus(),
-                "Order submitted and awaiting vendor approval."));
+                "Order submitted with simulated payment captured; awaiting vendor approval."));
 
         // Consume the saved cart in the same transaction as the order and reservations.
         cartItemRepository.deleteByCartCartId(cart.getCartId());
         cart.setStatus(CHECKED_OUT_CART);
         cartRepository.save(cart);
+
+        // Payment is simulated locally. Keep it inside checkout's transaction so a
+        // processing failure rolls back the order, items, reservation, address, and cart.
+        // Flush staged rows first so integration tests exercise a real database rollback.
+        orderRepository.flush();
+        String method = request.payment().paymentMethod().trim().toUpperCase();
+        recordCapturedPayment(savedOrder, method);
+        ensureInvoice(savedOrder);
 
         return toOrderDetail(savedOrder);
     }
@@ -309,28 +317,7 @@ public class OrderService {
         }
 
         String method = request.paymentMethod().trim().toUpperCase();
-        BankService paymentService;
-        try {
-            paymentService = paymentServiceSelector.getPaymentService(method);
-        } catch (IllegalArgumentException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage());
-        }
-
-        String reference = generatePaymentReference(method);
-        paymentService.processPayment(order.getTotalAmount(), reference);
-
-        Payment payment = latestPayment(orderId);
-        if (payment == null || !"AUTHORIZED".equals(payment.getStatus())) {
-            payment = new Payment();
-            payment.setOrder(order);
-        }
-        payment.setPaymentMethod(method);
-        payment.setStatus("CAPTURED");
-        payment.setAuthorizedAmount(order.getTotalAmount());
-        payment.setCapturedAmount(order.getTotalAmount());
-        payment.setCurrencyCode("AED");
-        payment.setProviderTransactionId(reference);
-        paymentRepository.save(payment);
+        recordCapturedPayment(order, method);
 
         order.setStatus("PROCESSING");
         orderRepository.save(order);
@@ -487,6 +474,38 @@ public class OrderService {
     private Payment latestPayment(Long orderId) {
         return paymentRepository.findFirstByOrder_OrderIdOrderByCreatedAtDesc(orderId)
                 .orElse(null);
+    }
+
+    private Payment recordCapturedPayment(Order order, String method) {
+        BankService paymentService;
+        try {
+            paymentService = paymentServiceSelector.getPaymentService(method);
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage());
+        }
+
+        String reference = generatePaymentReference(method);
+        try {
+            paymentService.processPayment(order.getTotalAmount(), reference);
+        } catch (RuntimeException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.PAYMENT_REQUIRED,
+                    "Payment could not be processed. No order changes were saved.",
+                    exception);
+        }
+
+        Payment payment = latestPayment(order.getOrderId());
+        if (payment == null || !"AUTHORIZED".equals(payment.getStatus())) {
+            payment = new Payment();
+            payment.setOrder(order);
+        }
+        payment.setPaymentMethod(method);
+        payment.setStatus("CAPTURED");
+        payment.setAuthorizedAmount(order.getTotalAmount());
+        payment.setCapturedAmount(order.getTotalAmount());
+        payment.setCurrencyCode("AED");
+        payment.setProviderTransactionId(reference);
+        return paymentRepository.save(payment);
     }
 
     private Invoice ensureInvoice(Order order) {

@@ -1,6 +1,7 @@
-
 package com.umhamza.ecommerce.controller;
 
+import com.umhamza.ecommerce.entity.User;
+import com.umhamza.ecommerce.repository.UserRepository;
 import com.umhamza.ecommerce.service.RegistrationService;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -11,6 +12,10 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -19,13 +24,9 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
-import java.util.stream.Collectors;
-
-import org.springframework.security.web.csrf.CsrfToken;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -33,16 +34,19 @@ public class AuthController {
 
     private final RegistrationService registrationService;
     private final AuthenticationManager authenticationManager;
+    private final UserRepository userRepository;
 
     private final HttpSessionSecurityContextRepository securityContextRepository =
             new HttpSessionSecurityContextRepository();
 
     public AuthController(
             RegistrationService registrationService,
-            AuthenticationManager authenticationManager) {
+            AuthenticationManager authenticationManager,
+            UserRepository userRepository) {
 
         this.registrationService = registrationService;
         this.authenticationManager = authenticationManager;
+        this.userRepository = userRepository;
     }
 
     public record RegistrationRequest(
@@ -103,34 +107,42 @@ public class AuthController {
 
         return ResponseEntity.ok("Login successful.");
     }
-@GetMapping("/csrf")
-public ResponseEntity<Map<String, String>> csrf(
-        @RequestAttribute("_csrf") CsrfToken csrfToken) {
+    @GetMapping("/csrf")
+    public ResponseEntity<Map<String, String>> csrf(
+            @RequestAttribute("_csrf") CsrfToken csrfToken) {
 
-    return ResponseEntity.ok(Map.of(
-            "token", csrfToken.getToken(),
-            "headerName", csrfToken.getHeaderName()
-    ));
-}
-@GetMapping("/me")
-public ResponseEntity<?> currentUser(Authentication authentication) {
+        return ResponseEntity.ok(Map.of(
+                "token", csrfToken.getToken(),
+                "headerName", csrfToken.getHeaderName()
+        ));
+    }
 
-    return ResponseEntity.ok(Map.of(
-            "email", authentication.getName(),
-            "roles", authentication.getAuthorities().stream()
-                    .map(GrantedAuthority::getAuthority)
-                    .collect(Collectors.toList())
-    ));
-}
+    @GetMapping("/me")
+    public ResponseEntity<?> currentUser(Authentication authentication) {
+        User user = userRepository.findByEmailIgnoreCase(authentication.getName())
+                .orElseThrow(() -> new IllegalStateException(
+                        "The authenticated user record could not be found."));
 
-@PostMapping("/logout")
-public ResponseEntity<String> logout(HttpSession session) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("email", authentication.getName());
+        response.put("roles", authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toList()));
+        if (user.getVendor() != null) {
+            response.put("vendorId", user.getVendor().getVendorId());
+        }
 
-    session.invalidate();
+        return ResponseEntity.ok(response);
+    }
 
-    SecurityContextHolder.clearContext();
+    @PostMapping("/logout")
+    public ResponseEntity<String> logout(HttpSession session) {
 
-    return ResponseEntity.ok("Logout successful.");
-}
+        session.invalidate();
+
+        SecurityContextHolder.clearContext();
+
+        return ResponseEntity.ok("Logout successful.");
+    }
 
 }

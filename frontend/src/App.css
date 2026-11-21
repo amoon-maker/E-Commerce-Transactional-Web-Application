@@ -58,6 +58,12 @@
 
 }
 
+.navigation-scroll-target {
+
+  scroll-margin-top: 110px;
+
+}
+
 .brand img {
 
   display: block;
