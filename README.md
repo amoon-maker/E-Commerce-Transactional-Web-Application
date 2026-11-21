@@ -259,9 +259,6 @@ frontend/
 docs/
     Project documentation
 
-testing/
-    Testing resources
-
 screenshots/
     Application demonstration screenshots
 ```
